@@ -423,7 +423,7 @@ The following are MUST requirements for all conforming producers:
 
 - An OBJECT_METADATA event MUST be re-emitted after any DDL event that changes a table's structure (ALTER, DROP+CREATE), and before the first DML event for that table under the new structure.
 
-- DML event value payloads MUST carry data values only. source_type, logical_type, parameters, and nullability MUST NOT be repeated per row -- they reside exclusively in the OBJECT_METADATA column descriptor.
+- DML event before and after value objects MUST carry column data values only. source_type, logical_type, parameters, and nullability MUST NOT appear within before or after row value objects — they reside in the OBJECT_METADATA column descriptor. When Schema on Each Event is active (Section 4.5.3), an additional _schema key MAY appear at the top level of the DML data object; this is the sole permitted location for per-event schema restatement and does not affect the values-only constraint on before/after.
 
 - The dataschema field of every DML event MUST equal the CloudEvents id of the most recently emitted OBJECT_METADATA event for its table.
 
@@ -638,6 +638,8 @@ The producer MUST maintain a current schema map (table -> current OBJECT_METADAT
 When active, the producer MUST embed the full OBJECT_METADATA data payload inline within every DML event under a top-level key named _schema in the DML data object. The embedded _schema object MUST be structurally identical to the data block of a standalone OBJECT_METADATA event and MUST contain table, schema_version, primary_key, columns[], and json_schema.
 
 The DML event's dataschema CloudEvents field MUST still reference the CloudEvents id of the most recently emitted standalone OBJECT_METADATA event. The _schema embedding supplements but does not replace the dataschema reference.
+
+Note: The _schema embedding does not violate the Section 4.1 values-only constraint on before/after — it is a separate, optional top-level key alongside those fields, not within them.
 
 Key use cases: stateless consumption where the consumer process has no persistent schema cache (e.g., serverless functions, ephemeral containers); consumers that join a stream mid-session without access to start-of-connection OBJECT_METADATA events; consumers operating in Ephemeral Mode (Section 15.2). Wire overhead of embedding _schema in every DML event is significant for wide tables -- producers SHOULD document per-event overhead. A row for _schema MUST be added to the Section 5.2 Common DML Payload Fields table as: field _schema, Conditional, Present only when schema_on_each_event: true; contains full OBJECT_METADATA data payload.
 
