@@ -1,10 +1,10 @@
-OpenCDC Specification -- Draft v0.3
+OpenCDC Specification -- Draft v0.5
 
 # OpenCDC
 
 # Open Change Data Capture Specification
 
-Draft v0.4 -- May 2026
+Draft v0.5 -- May 2026
 
 Status: Draft for Discussion
 
@@ -14,6 +14,10 @@ OpenCDC Working Group
 This document specifies OpenCDC, a vendor-neutral JSON format for change data capture event streams. OpenCDC uses CloudEvents v1.1 as its envelope layer, combined with a schema-first payload design that provides full type fidelity across heterogeneous database engines. The standard mandates self-describing, schema-inline streams that are independently consumable without external infrastructure dependencies. It defines canonical representations for DML operations, DDL events, transaction identity, schema evolution, and stream lifecycle events. Type system semantics are defined in the companion OpenCDC Type System Proposal (v0.2), which is a normative reference to this specification. This document is written for implementers -- engineers at CDC tool vendors, database vendors, and pipeline platform teams who will produce or consume conformant OpenCDC streams. All behavioral requirements use RFC 2119 terminology (MUST, MUST NOT, SHOULD, SHOULD NOT, MAY).
 
 # Change Log
+
+- **v0.5**
+  - Date: May 2026
+  - Summary of Changes: Section 10.2 TRUNCATE fully reworked: classification rationale added; transactional vs. non-transactional engine behavior defined; multi-table TRUNCATE addressed. New optional truncate_details object with three flags (cascade, sequence_reset, multi_table) using four-value semantics (true | false | "not_applicable" | "unknown"). propagated_tables explicitly deferred. New producer rule P-ORD-7 (multi-table TRUNCATE ordering). New consumer Section 7.6 (C-TRUNC-1 through C-TRUNC-4). Section 8.3 extended with non-transactional TRUNCATE / synthetic cdcxid rules. Section 2.8 TRUNCATE conformance refinement note. New normative rules P-TRUNC-1 through P-TRUNC-4 and C-TRUNC-1 through C-TRUNC-3 in Section 17. New TRUNCATE design decision in Section 18. New compliance matrix rows and conformance test scenarios T-11 through T-14 in Section 19. New Appendix A.11, A.12, A.13 design rationale.
 
 - **v0.4**
   - Date: May 2026
@@ -253,6 +257,8 @@ To ensure that partial implementations can interoperate, OpenCDC defines a Minim
 
 Stretch features (UPSERT, TRUNCATE, SNAPSHOT, bidirectional sync loop prevention, partial UPDATE images, Observability fields) are RECOMMENDED but not required for minimum profile conformance.
 
+TRUNCATE conformance refinement: A producer that emits TRUNCATE events and whose source engine exposes truncate execution options (such as cascade behavior or identity-sequence reset behavior) SHOULD populate the truncate_details object defined in Section 10.2. A producer that emits TRUNCATE events for an engine that does not expose such options (or cannot observe them from the capture layer) MAY omit truncate_details entirely. A producer that omits truncate_details is conformant; a producer that populates truncate_details with incorrect or fabricated values is non-conformant. See Section 10.2 for the full truncate_details specification and per-engine guidance.
+
 ## 2.9 Why GoldenGate's Architecture, Not Debezium's
 
 Two mature CDC implementations were evaluated as the starting point:
@@ -323,7 +329,7 @@ com.{org}.cdc.dml.INSERT
 com.{org}.cdc.dml.UPDATE
 com.{org}.cdc.dml.DELETE
 com.{org}.cdc.dml.UPSERT      # explicit upsert -- not an INSERT+DELETE pair
-com.{org}.cdc.dml.TRUNCATE    # delete all rows; no before/after image
+com.{org}.cdc.dml.TRUNCATE    # delete all rows; no before/after image; NOTE: transactional in PostgreSQL/SQL Server, DDL (implicit commit) in Oracle/MySQL -- see Section 10.2
 # DDL operations (schema changes)
 com.{org}.cdc.ddl.CREATE
 com.{org}.cdc.ddl.ALTER
@@ -894,6 +900,8 @@ This section defines the complete set of behavioral obligations for conforming O
 
 - P-ORD-6 (CRITICAL -- Partition Alignment): All events belonging to the same transaction (same cdcxid) MUST be emitted with the same partitionkey value. This ensures all events of a transaction land on the same Kafka partition and are therefore subject to the same ordering guarantee. A producer that distributes a single transaction across multiple partitionkey values is non-conformant. If a transaction touches rows with different primary keys, the producer MUST choose one partitionkey for the entire transaction (e.g., the primary key of the first changed row, or a transaction-level hash).
 
+- P-ORD-7 (Multi-Table TRUNCATE): When a source engine executes a single TRUNCATE statement that explicitly names multiple tables (e.g., PostgreSQL TRUNCATE table_a, table_b, table_c;), the producer MUST emit one TRUNCATE event per named table. All TRUNCATE events from the same multi-table statement MUST carry the same cdcxid value and MUST be assigned sequential cdctxorder values (0, 1, 2, ...) in the order the tables appear in the statement or in capture-layer log order when statement order is not determinable. A producer that emits TRUNCATE events for a multi-table statement with different cdcxid values is non-conformant. IMPORTANT: a multi-table TRUNCATE (user explicitly names multiple tables in one statement) is distinct from CASCADE-propagated truncation (implicit truncation of related tables via foreign key relationships). Both produce multiple TRUNCATE events sharing a cdcxid, but the mechanism differs. The multi_table field in truncate_details (Section 10.2) signals the explicit case; the cascade field signals CASCADE behavior. Propagated table enumeration is explicitly deferred to a future specification version.
+
 ## 6.2 Type Fidelity Obligations
 
 - P-TYPE-1: Producers MUST populate source_type with the verbatim DDL type declaration from the source engine. Normalization, aliasing, or expansion of source types is non-conformant.
@@ -990,6 +998,16 @@ This section defines the behavioral obligations for conforming OpenCDC consumers
 
 - C-VAL-3: Consumers SHOULD verify CloudEvents envelope compliance for every received event, including specversion="1.1" and required field presence.
 
+## 7.6 TRUNCATE Consumer Obligations
+
+- C-TRUNC-1 (Minimum TRUNCATE semantics): Consumers MUST treat any TRUNCATE event as semantically equivalent to the deletion of all rows in the named table, regardless of whether truncate_details is present. This is the unconditional minimum contract. A consumer that cannot process TRUNCATE events is non-conformant for any deployment where TRUNCATE is expected from the source.
+
+- C-TRUNC-2 (truncate_details -- correctness-sensitive apply): Consumers performing correctness-sensitive replication to a same-engine or semantically equivalent target SHOULD inspect the truncate_details object when present. If cascade is true and the target engine supports cascading truncation, the consumer SHOULD apply TRUNCATE with the CASCADE option (or equivalent). If sequence_reset is true and the target table has an identity or auto-increment sequence, the consumer SHOULD reset that sequence as part of applying the TRUNCATE; if sequence_reset is false, the consumer SHOULD preserve the existing sequence state. If cascade or sequence_reset is "not_applicable", the consumer MAY ignore that field -- it carries no actionable information for the current source/target pair. If cascade or sequence_reset is "unknown", the consumer SHOULD apply the target engine's default behavior and SHOULD log the uncertainty for operator visibility.
+
+- C-TRUNC-3 (truncate_details -- target-agnostic apply): Consumers performing target-agnostic apply (e.g., a lakehouse ingestion layer, a message bus consumer, or a cross-vendor replication target) MAY ignore the truncate_details object entirely and apply only the minimum TRUNCATE semantics (delete all rows). Such consumers MUST NOT fail or reject a TRUNCATE event solely because truncate_details is present; they MUST silently ignore the object when it is not actionable.
+
+- C-TRUNC-4 (TRUNCATE idempotency): TRUNCATE events participate in the standard (source, id) deduplication mechanism (Section 7.3). A consumer that receives a duplicate TRUNCATE event (same (source, id) pair) MUST apply standard deduplication and MUST NOT re-apply the truncation.
+
 # 8. Position and Replay Semantics
 
 ## 8.1 Structured Position Object
@@ -1080,6 +1098,13 @@ Transaction identity is available at two layers by design:
 
 **No Transaction Completion Marker**
 OpenCDC does not define an explicit COMMIT event type. Transaction completion is inferred: a consumer that has received all events for a given cdcxid (detected by receiving the first event of the next cdcxid, or by a HEARTBEAT after a transaction) may commit the transaction atomically. Producers MUST emit all events of a transaction before emitting any event of a subsequent transaction (i.e., transactions MUST NOT be interleaved in the stream). This guarantee makes transaction boundary detection reliable from cdcxid alone.
+
+**TRUNCATE and Transaction Boundaries -- Engine-Specific Behavior**
+TRUNCATE has materially different transactional properties depending on the source database engine, and producers MUST handle cdcxid assignment accordingly.
+
+Transactional TRUNCATE (PostgreSQL, SQL Server): TRUNCATE is a fully transactional operation that participates in the enclosing transaction and can be rolled back. The TRUNCATE event MUST carry the source transaction's real cdcxid. A TRUNCATE can appear mid-transaction alongside INSERT, UPDATE, and DELETE events -- all events share the same cdcxid and sequential cdctxorder values. Consumers MUST expect that DML events may appear after a TRUNCATE within the same cdcxid; this is a valid transactional sequence and MUST be applied in cdctxorder order.
+
+Non-Transactional TRUNCATE (Oracle, MySQL/MariaDB): TRUNCATE is a DDL statement that causes an implicit COMMIT of any open transaction before executing and cannot be rolled back. Because it does not belong to a real source transaction, a producer capturing an Oracle or MySQL TRUNCATE MUST assign a synthetic cdcxid value. The synthetic value MUST be: (a) unique within the stream, (b) stable across replay of the same event (same synthetic cdcxid on replay), and (c) documented by the producer implementation. Non-transactional TRUNCATE events will never appear alongside other DML events in the same cdcxid -- they are always solitary single-event synthetic transactions.
 
 ## 8.4 Sequence Discontinuity -- Producer Obligations and Consumer Handling
 
@@ -1189,23 +1214,118 @@ HEARTBEAT events MUST be emitted periodically during idle periods (no DML change
 
 ## 10.2 TRUNCATE
 
-TRUNCATE is a common DDL-adjacent operation that neither GoldenGate nor Debezium handles well. OpenCDC defines it as a formal DML-category event with no before/after image. Consumers MUST treat TRUNCATE as semantically equivalent to DELETE of all rows in the table. TRUNCATE events do not require a before or after image -- both MUST be null.
+### 10.2.1 Classification and Minimum Contract
+
+TRUNCATE is a DDL-adjacent operation that OpenCDC formally classifies as dml.TRUNCATE -- a DML-category event -- to preserve its position in the transactional event stream alongside INSERT, UPDATE, and DELETE. This classification resolves the ambiguity that GoldenGate and Debezium both handle poorly: TRUNCATE does not fit cleanly into DDL (because it changes data, not schema) or DML (because it carries no before/after image). Consumers MUST treat any TRUNCATE event as semantically equivalent to the deletion of all rows in the named table. Both before and after MUST be null. TRUNCATE events do not generate a new OBJECT_METADATA schema version -- a TRUNCATE does not alter the table's column structure. The mandatory OBJECT_METADATA ordering rule (Section 4.1) applies: OBJECT_METADATA MUST have been emitted before the TRUNCATE event, but the TRUNCATE itself does not trigger a new schema version.
+
+### 10.2.2 Transactional vs. Non-Transactional TRUNCATE
+
+TRUNCATE has fundamentally different transactional properties by engine. PostgreSQL and SQL Server: TRUNCATE is transactional, participates in the enclosing transaction, can be rolled back, and is WAL-logged or transaction-logged. The TRUNCATE event carries the real source transaction cdcxid. DML events (INSERT, UPDATE, DELETE) MAY appear after a TRUNCATE within the same cdcxid -- consumers MUST apply all events in cdctxorder sequence without assuming a TRUNCATE terminates the transaction. Oracle and MySQL/MariaDB: TRUNCATE is DDL. It causes an implicit COMMIT before executing and cannot be rolled back. Because there is no enclosing source transaction, producers MUST assign a synthetic cdcxid to these TRUNCATE events. The synthetic cdcxid MUST be unique, stable across replay, and documented by the producer. These events will never co-occur with DML events in the same cdcxid. See Section 8.3 for the full transaction boundary rules for both cases.
+
+### 10.2.3 Multi-Table TRUNCATE
+
+PostgreSQL and certain other engines support a single TRUNCATE statement that explicitly names multiple tables (e.g., TRUNCATE table_a, table_b, table_c;). For multi-table TRUNCATE, producers MUST emit one TRUNCATE event per named table. All events MUST share the same cdcxid and MUST be assigned sequential cdctxorder values (0, 1, 2, ...) per P-ORD-7. Multi-table TRUNCATE (explicit, single SQL statement) is distinct from CASCADE-propagated truncation (implicit, triggered by foreign key relationships). Both produce multiple TRUNCATE events sharing a cdcxid, but they are different mechanisms with different consumer implications. The multi_table flag in truncate_details signals the explicit case; the cascade flag signals CASCADE behavior.
+
+### 10.2.4 Payload Structure
+
+TRUNCATE events carry the standard DML payload envelope fields. primary_key MUST be populated. before and after MUST both be null. _null_columns and _lob_overflow MUST be present and MUST be empty arrays. The pos object MUST be populated per Section 8.1. The optional truncate_details object (Section 10.2.5) MAY be present when the producer can observe execution-time semantics from the source engine.
 
 ```
+// -- PostgreSQL: TRUNCATE FINANCE.AUDIT_LOG CASCADE RESTART IDENTITY; --
 {
-  "type":    "com.acme.cdc.dml.TRUNCATE",
-  "subject": "FINANCE.AUDIT_LOG",
-  "dataschema": "schema-AUDIT-LOG-v1",
+  "specversion":    "1.1",
+  "id":             "d4e5f6a7-0000-0000-0000-000000000042",
+  "source":         "//pg-prod.acme.com/sales",
+  "subject":        "FINANCE.AUDIT_LOG",
+  "type":           "com.acme.cdc.dml.TRUNCATE",
+  "time":           "2026-05-10T09:00:00.000Z",
+  "datacontenttype":"application/json",
+  "dataschema":     "schema-AUDIT-LOG-v1",
+  "cdcspecversion": "0.4",
+  "cdcxid":         "txn-00441820",
+  "cdctxorder":     0,
+  "cdcpos":         "0000001A000007B2:0",
   "data": {
-    "table":  { "catalog": "ORCL", "schema": "FINANCE", "name": "AUDIT_LOG" },
-    "before": null,
-    "after":  null,
+    "table":         { "catalog": "sales", "schema": "FINANCE", "name": "AUDIT_LOG" },
+    "primary_key":   ["LOG_ID"],
+    "before":        null,
+    "after":         null,
     "_null_columns": [],
     "_lob_overflow": [],
-    "pos":    { "lsn":"...", "source_timestamp":"...", "lsn_offset":0, "native_position":"..." }
+    "truncate_details": {
+      "cascade":        true,
+      "sequence_reset": true,
+      "multi_table":    false
+    },
+    "pos": {
+      "lsn":              "0000001A000007B2",
+      "source_timestamp": "2026-05-10T09:00:00.000Z",
+      "lsn_offset":       0,
+      "native_position":  "0/1A0007B2"
+    }
   }
 }
 ```
+
+```
+// -- Oracle: TRUNCATE TABLE FINANCE.AUDIT_LOG; (non-transactional, synthetic cdcxid) --
+{
+  "specversion":    "1.1",
+  "id":             "a1b2c3d4-0000-0000-0000-000000000099",
+  "source":         "//oracle-prod.acme.com/ORCL/FINANCE",
+  "subject":        "FINANCE.AUDIT_LOG",
+  "type":           "com.acme.cdc.dml.TRUNCATE",
+  "time":           "2026-05-10T09:00:05.000Z",
+  "datacontenttype":"application/json",
+  "dataschema":     "schema-AUDIT-LOG-v1",
+  "cdcspecversion": "0.4",
+  "cdcxid":         "truncate:FINANCE.AUDIT_LOG:0000001A00000900",
+  "cdctxorder":     0,
+  "cdcpos":         "0000001A00000900:0",
+  "data": {
+    "table":         { "catalog": "ORCL", "schema": "FINANCE", "name": "AUDIT_LOG" },
+    "primary_key":   ["LOG_ID"],
+    "before":        null,
+    "after":         null,
+    "_null_columns": [],
+    "_lob_overflow": [],
+    "truncate_details": {
+      "cascade":        "not_applicable",
+      "sequence_reset": "not_applicable",
+      "multi_table":    false
+    },
+    "pos": {
+      "lsn":              "0000001A00000900",
+      "source_timestamp": "2026-05-10T09:00:05.000Z",
+      "lsn_offset":       0,
+      "native_position":  "3847264.1.0"
+    }
+  }
+}
+```
+
+### 10.2.5 The truncate_details Object
+
+truncate_details is an OPTIONAL object within the TRUNCATE event's data payload. It SHOULD be populated by producers when the source engine exposes the relevant execution-time semantics at the capture layer. It MUST be omitted when the producer cannot reliably determine the values -- producers MUST NOT fabricate or assume flag values. An absent truncate_details is always valid; a truncate_details with incorrect values is a conformance violation.
+
+**cascade**
+Type: true | false | "not_applicable" | "unknown". Whether the TRUNCATE cascaded to related tables via foreign key relationships. true means CASCADE was active and propagated to one or more related tables. false means RESTRICT was active or CASCADE was not specified and did not propagate. "not_applicable" means the source engine does not support cascading truncation as a concept. "unknown" means the engine supports CASCADE but the producer could not determine from the capture layer whether it was active. Engine guidance: PostgreSQL: true (TRUNCATE ... CASCADE) or false (TRUNCATE ... RESTRICT or default -- RESTRICT is the default). Oracle: always "not_applicable". MySQL/MariaDB: always "not_applicable". SQL Server: always "not_applicable". IBM Db2: always "not_applicable".
+
+**sequence_reset**
+Type: true | false | "not_applicable" | "unknown". Whether the table's identity, auto-increment, or sequence counter was reset as part of this TRUNCATE. true means the counter was reset to its initial value. false means the counter was preserved. "not_applicable" means the source engine has no table-attached identity or sequence concept (sequences are independent objects, not column properties). "unknown" means the engine supports identity reset but the producer could not determine the actual behavior. DISAMBIGUATION: This field reuses the name sequence_reset that also appears in HEARTBEAT events (Section 10.1). These are DISTINCT concepts: HEARTBEAT.sequence_reset signals a discontinuity in the CloudEvents stream-level sequence counter; truncate_details.sequence_reset signals a reset of the source table's identity or auto-increment column counter. Implementations MUST NOT conflate these two fields. Engine guidance: PostgreSQL: true (TRUNCATE ... RESTART IDENTITY) or false (TRUNCATE ... CONTINUE IDENTITY or default -- CONTINUE IDENTITY is the default). MySQL/MariaDB: always true -- MySQL TRUNCATE always resets AUTO_INCREMENT to the column's defined start value; there is no option to suppress this. Oracle: always "not_applicable" -- sequences are independent schema objects with no connection to TRUNCATE TABLE. SQL Server: false -- TRUNCATE TABLE does not reset IDENTITY columns and there is no option to trigger a reset via TRUNCATE. IBM Db2: false -- TRUNCATE TABLE does not reset GENERATED ALWAYS or GENERATED BY DEFAULT identity column values.
+
+**multi_table**
+Type: true | false. Whether this TRUNCATE event is one of multiple TRUNCATE events produced from a single source SQL statement that explicitly named multiple tables. true means this event shares its cdcxid with other TRUNCATE events from the same statement. false means this TRUNCATE statement named only this one table. This field signals the explicit multi-table case only and does NOT indicate CASCADE-propagated implicit truncation -- see the cascade field for that.
+
+**Deferred: propagated_tables**
+The enumeration of tables that were implicitly truncated via CASCADE (a propagated_tables array) is explicitly deferred to a future specification version. Producers MUST NOT include a propagated_tables field in truncate_details in v0.4 conformant payloads. Consumers receiving a truncate_details object with an unrecognized field MUST apply standard closed-world rejection per C-VAL-2.
+
+**Flag Value Summary**
+cascade -- true: CASCADE was active; false: RESTRICT was active or default; "not_applicable": engine has no CASCADE truncation concept; "unknown": engine supports it but producer could not determine from log. sequence_reset -- true: counter was reset; false: counter was preserved; "not_applicable": engine has no table-attached identity/sequence concept; "unknown": engine supports it but producer could not determine from log. multi_table -- true: one of N tables in a single explicit statement; false: single-table statement. (multi_table does not use "not_applicable" or "unknown" -- it is always a deterministic boolean.)
+
+### 10.2.6 Schema Registry and Closed-World Note
+
+The truncate_details object is a defined, versioned payload field in the OpenCDC specification. Its presence in a TRUNCATE event's data payload does not constitute an "unrecognized field" under C-VAL-2 -- conformant consumers that have implemented the full OpenCDC specification will recognize it by definition. The additionalProperties: false enforcement in C-VAL-2 applies to the before/after row value objects governed by the table's json_schema in OBJECT_METADATA, not to the top-level fields of the TRUNCATE data payload, which are governed by the OpenCDC specification directly. Consumers that implement only the minimum interoperability profile and have not implemented TRUNCATE support MAY encounter truncate_details as an unknown structure; such consumers SHOULD ignore the field per C-TRUNC-3 rather than reject the event.
 
 ## 10.3 SNAPSHOT (Initial Load)
 
@@ -1708,6 +1828,41 @@ The following table consolidates all MUST requirements across the specification 
   - Who: Consumer
   - Section: 3.3, 8.1, 8.2
 
+- **P-TRUNC-1**
+  - Requirement: When emitting a TRUNCATE event, before and after MUST be null; _null_columns and _lob_overflow MUST be present and empty; primary_key MUST be populated
+  - Who: Producer
+  - Section: 10.2.4
+
+- **P-TRUNC-2**
+  - Requirement: For multi-table TRUNCATE (single SQL statement naming multiple tables), producer MUST emit one TRUNCATE event per table; all events MUST share the same cdcxid; cdctxorder MUST be sequential (0, 1, 2, ...)
+  - Who: Producer
+  - Section: 6.1 (P-ORD-7), 10.2.3
+
+- **P-TRUNC-3**
+  - Requirement: For non-transactional TRUNCATE (Oracle, MySQL), producer MUST assign a synthetic cdcxid that is unique, stable across replay, and documented
+  - Who: Producer
+  - Section: 10.2.2, 8.3
+
+- **P-TRUNC-4**
+  - Requirement: If a producer emits TRUNCATE events and the source engine exposes truncate execution options, the producer SHOULD populate truncate_details; producers MUST NOT fabricate flag values that cannot be determined from the capture layer
+  - Who: Producer
+  - Section: 10.2.5, 2.8
+
+- **C-TRUNC-1**
+  - Requirement: Consumers MUST treat any TRUNCATE event as semantically equivalent to deletion of all rows in the named table, regardless of truncate_details presence
+  - Who: Consumer
+  - Section: 10.2.1, 7.6
+
+- **C-TRUNC-2**
+  - Requirement: Consumers performing correctness-sensitive (same-engine) replication SHOULD inspect truncate_details.cascade and truncate_details.sequence_reset when present and act on non-"not_applicable" values
+  - Who: Consumer
+  - Section: 7.6
+
+- **C-TRUNC-3**
+  - Requirement: Consumers performing target-agnostic apply MAY ignore truncate_details; consumers MUST NOT reject a TRUNCATE event solely because truncate_details is present
+  - Who: Consumer
+  - Section: 7.6
+
 # 18. Design Decision Record
 
 This section records deliberate design decisions and what was explicitly excluded, and why. This is for implementers who need to understand the intent behind a constraint, not just the constraint itself.
@@ -1751,6 +1906,10 @@ This section records deliberate design decisions and what was explicitly exclude
 - **Naming**
   - What Was Adopted: OpenCDC throughout
   - What Was Rejected and Why: CDC-OIS: replaced for internal consistency with the working group's naming convention. All "CDC-OIS" references retired as of v0.2.
+
+- **TRUNCATE semantic fidelity -- truncate_details design**
+  - What Was Adopted: Optional truncate_details object with cascade, sequence_reset, and multi_table flags. Flag values use a four-value set: true | false | "not_applicable" | "unknown". Core contract remains: TRUNCATE = table emptied, before = null, after = null.
+  - What Was Rejected and Why: (a) Vendor-specific mini-language: rejected in favor of three portable, effect-oriented flags that cover the semantically meaningful cases across PostgreSQL, MySQL, Oracle, SQL Server, and IBM Db2. (b) Collapsing "not_applicable" and "unknown" into a single value: rejected because they are operationally distinct -- "not_applicable" is a stable fact about an engine's capabilities that a consumer can hard-code; "unknown" indicates observability uncertainty that may resolve in a future producer version. Conflating them forces consumers to treat stable engine facts as runtime uncertainties. (c) Naming the field "identity_action" (from PostgreSQL vocabulary): rejected in favor of "sequence_reset" for cross-engine portability -- the boolean expresses the effect, not the mechanism, and maps cleanly across all engines; a disambiguation note in Section 10.2.5 prevents conflation with HEARTBEAT.sequence_reset. (d) propagated_tables (CASCADE-affected table list): deferred -- the list cannot be reliably reconstructed from the WAL alone without catalog lookups that impose capture-layer overhead not all producers can provide; multi-table TRUNCATE (explicit statement) is addressed by multi_table and P-ORD-7 without catalog access. (e) Making truncate_details required: rejected -- not every engine exposes these semantics and not every capture layer can observe them; a SHOULD obligation with a "do not fabricate" prohibition is the correct level.
 
 # 19. Conformance
 
@@ -1900,6 +2059,48 @@ Conformance testing guidance: A conformant stream can be validated end-to-end us
   - Both MUST:
   - Section: 3.4
 
+- **TRUNCATE: before=null, after=null, primary_key populated**
+  - Producer MUST: yes
+  - Consumer MUST:
+  - Both MUST:
+  - Section: 10.2.4
+
+- **TRUNCATE: _null_columns and _lob_overflow present and empty**
+  - Producer MUST: yes
+  - Consumer MUST:
+  - Both MUST:
+  - Section: 10.2.4
+
+- **TRUNCATE: minimum semantics (delete all rows) applied regardless of truncate_details**
+  - Producer MUST:
+  - Consumer MUST: yes
+  - Both MUST:
+  - Section: 10.2.1, 7.6
+
+- **TRUNCATE: truncate_details SHOULD be populated when engine exposes options**
+  - Producer SHOULD: yes
+  - Consumer SHOULD:
+  - Both SHOULD:
+  - Section: 10.2.5, 2.8
+
+- **TRUNCATE: correctness-sensitive consumers SHOULD inspect truncate_details**
+  - Producer SHOULD:
+  - Consumer SHOULD: yes
+  - Both SHOULD:
+  - Section: 7.6
+
+- **Multi-table TRUNCATE: one event per table, shared cdcxid, sequential cdctxorder**
+  - Producer MUST: yes
+  - Consumer MUST:
+  - Both MUST:
+  - Section: 6.1 (P-ORD-7), 10.2.3
+
+- **Non-transactional TRUNCATE (Oracle, MySQL): synthetic cdcxid required**
+  - Producer MUST: yes
+  - Consumer MUST:
+  - Both MUST:
+  - Section: 10.2.2, 8.3
+
 - **Payload encoding preserves field semantics**
   - Producer MUST: yes
   - Consumer MUST: yes
@@ -1960,6 +2161,26 @@ The following scenarios are the minimum test suite for conformance validation. E
   - Pass Criterion: Producer emits events in Avro (or Protobuf). Consumer correctly decodes all fields and type values. No JSON parser required.
   - User Story: Story 3, 4
 
+- **T-11**
+  - Scenario: TRUNCATE -- minimum semantics
+  - Pass Criterion: Consumer receives a TRUNCATE event (with or without truncate_details). Consumer applies "delete all rows" to the target table. before and after are confirmed null. _null_columns and _lob_overflow are confirmed present and empty. Consumer does not fail or reject the event.
+  - User Story: Story 1, 2
+
+- **T-12**
+  - Scenario: TRUNCATE -- truncate_details inspection (correctness-sensitive)
+  - Pass Criterion: Consumer receives a PostgreSQL TRUNCATE event with truncate_details: { cascade: true, sequence_reset: true, multi_table: false }. Consumer applies TRUNCATE CASCADE on the same-engine target and resets the target table's identity sequence. If target engine does not support CASCADE or identity reset, consumer logs the flag values and applies minimum semantics without error.
+  - User Story: Story 1, 2
+
+- **T-13**
+  - Scenario: TRUNCATE -- multi-table, shared cdcxid
+  - Pass Criterion: Producer emits TRUNCATE events for tables A, B, and C from a single TRUNCATE A, B, C; statement. All three events carry the same cdcxid. cdctxorder values are 0, 1, 2 respectively. multi_table is true on all three. Consumer applies all three truncations atomically within the same cdcxid group and does not treat them as three independent transactions.
+  - User Story: Story 2
+
+- **T-14**
+  - Scenario: TRUNCATE -- non-transactional (Oracle/MySQL) synthetic cdcxid
+  - Pass Criterion: Producer emits an Oracle TRUNCATE event with a synthetic cdcxid (not a real Oracle transaction ID). The synthetic cdcxid is stable: replay of the same event carries the same synthetic cdcxid. Consumer deduplicates on (source, id) correctly, not on cdcxid alone. truncate_details shows cascade: "not_applicable" and sequence_reset: "not_applicable".
+  - User Story: Story 1, 2
+
 OpenCDC Specification -- Draft v0.2 -- May 2026 -- OpenCDC Working Group
 
 # Appendix A: Design Rationale
@@ -2005,5 +2226,17 @@ A per-event flag would impose overhead on every event to communicate a condition
 ## A.10 Sequencing -- Where the Specification Draws the Line on Source-Specific Behavior
 
 A specification that defines MySQL GTID handling, Oracle SCN encoding, and PostgreSQL WAL LSN normalization becomes both a CDC standard and a database internals reference simultaneously. This creates a document too large to be useful and too tightly coupled to specific engine versions to remain accurate over time. The specification defines what a conformant output looks like (pos.lsn must be a hex-encoded monotonically increasing string; sequence_continuity must accurately reflect the producer's guarantee) and leaves the path to that output to the implementer. The canonical discontinuity scenarios in Section 8.4.3 define producer obligations, not implementation paths.
+
+## A.11 TRUNCATE -- Why truncate_details Uses Four Flag Values Instead of Two
+
+The four-value set for cascade and sequence_reset (true | false | "not_applicable" | "unknown") is deliberately more complex than a simple boolean. Collapsing the four states into two would create a specification that is simultaneously imprecise and misleading for the majority of database engines. Consider cascade across five engines: PostgreSQL can be true or false, deterministically observable from the WAL. Oracle, MySQL, SQL Server, and IBM Db2 do not have a CASCADE truncation concept at all. Under a boolean model, four of the five engines would always emit cascade: false, but for the wrong reason -- implying "CASCADE was available and not chosen" when in fact "CASCADE does not exist in this engine." The distinction matters because a consumer that inspects cascade: false and applies no-cascade behavior may be correct for PostgreSQL but "accidentally correct" for Oracle. "not_applicable" creates an unambiguous contract: this engine never has this concept, and a consumer can safely hard-code no-cascade behavior without inspecting the flag per event. "unknown" is necessary for a different reason: observability gaps. A CDC capture layer may not be able to reconstruct all execution-time options from the log record alone. Allowing "unknown" lets a producer be honest about its observability limits rather than guessing. A consumer receiving "unknown" knows to apply a safe default and log the uncertainty; a consumer receiving false would have no way to know whether the false was a genuine "not used" or a producer that guessed.
+
+## A.12 TRUNCATE -- Why propagated_tables Was Deferred
+
+The most obvious extension to truncate_details would be a propagated_tables array listing all tables implicitly truncated due to CASCADE. In PostgreSQL, TRUNCATE CASCADE can propagate through multiple levels of foreign key relationships. The WAL records the TRUNCATE on each affected table separately, but the causal chain must be inferred from catalog metadata -- a producer would need to query pg_constraint at capture time to build the FK graph and correlate WAL TRUNCATE records back to the originating statement. This is not always reliable depending on WAL decoder implementation, capture concurrency, or replication slot behavior. A producer that emits an incomplete propagated_tables array is worse than one that emits nothing, because it creates a false sense of completeness. The multi_table flag (for explicit multi-table TRUNCATE statements) is safe to implement because the table list comes directly from the SQL statement itself with no catalog inference. CASCADE propagation requires catalog inference and is therefore deferred until a reliable mechanism can be defined.
+
+## A.13 TRUNCATE -- Why sequence_reset Reuses HEARTBEAT Vocabulary
+
+The field name sequence_reset in truncate_details reuses a field name already present in HEARTBEAT events (Section 10.1). HEARTBEAT.sequence_reset signals a disruption in the CloudEvents stream-level sequence counter. truncate_details.sequence_reset signals a reset of a table's identity or auto-increment counter. These are different concepts, but the name was chosen for two reasons. First, cross-engine portability: PostgreSQL's "RESTART IDENTITY" vocabulary is engine-specific and does not transfer to MySQL AUTO_INCREMENT, SQL Server IDENTITY, or Db2 GENERATED identity. The boolean "sequence_reset" expresses the effect, not the mechanism, and is immediately legible across engine backgrounds. Second, vocabulary consistency: the word "reset" already carries meaning in this specification (lsn_reset, sequence_reset in HEARTBEAT). Introducing "identity_action" or "autoincrement_reset" would create a new vocabulary term for a concept the spec already has a word for. The disambiguation note in Section 10.2.5 is the necessary and sufficient mechanism to prevent conflation -- the two fields appear in entirely different event types (HEARTBEAT vs. TRUNCATE data payload) and different payload contexts.
 
 OpenCDC Working Group -- Draft for Discussion
