@@ -1,0 +1,464 @@
+> **Confidential — Oracle Restricted \ Employees Only**
+
+# OpenCDC — Payload Examples (Annotated Reference)
+
+**Three Transactions: INSERT · UPDATE · DELETE**
+
+Source: Oracle 23ai · Table: `FINANCE.CUSTOMER_ORDERS` · June 2026
+Aligned to: OpenCDC Specification **v0.6**
+
+> **A note on versions.** The `cdcspecversion` / `opencdc_version` fields below carry `"0.2"`, which is the OpenCDC wire-protocol version defined in the specification (Section 3.3), *not* the specification document revision (v0.6). The wire contract did not change between spec revisions v0.2 and v0.6 — those revisions were editorial and structural — so every payload here is conformant to v0.6 as written. (If the working group decides to bump the protocol field, it is a single global change in this document.)
+
+---
+
+# Scenario and Design Rationale
+
+This document shows a complete conformant OpenCDC stream for a single Oracle 23ai source table. The table is deliberately designed to exercise the most important type-system and structural decisions in the specification: each column illustrates a specific producer obligation, and each annotation explains the conformance point it demonstrates.
+
+The stream contains exactly **6 events in order**:
+
+- **Event 1 — STREAM_METADATA**: session-scoped handshake (not part of schema ordering)
+- **Event 2 — OBJECT_METADATA**: full schema emitted once — all DML events reference it
+- **Event 3 — INSERT** (Transaction 1): new order placed
+- **Event 4 — UPDATE** (Transaction 2): partial image, LOB overflow, nanosecond timestamp
+- **Event 5 — DELETE** (Transaction 3): full before image
+- **Event 6 — HEARTBEAT**: idle-period liveness signal
+
+This is a *producer* stream. Where an annotation describes how a consumer interprets a field, that behavior is non-normative for the specification and is defined as service-level guidance in **Appendix A** of the spec; it is included here to show how the producer's output is intended to be used.
+
+## Column Selection and Design Decisions
+
+| Column | Source Type | Logical Type | Producer behavior / type decision illustrated |
+| --- | --- | --- | --- |
+| `ORDER_ID` | `NUMBER(19,0)` | `DECIMAL` | Exact decimal **STRING** — not a JSON number. `NUMBER(19,0)` can reach 10¹⁹, exceeding signed INT64 and the JSON safe-integer range. |
+| `CUSTOMER_REF` | `VARCHAR2(200 BYTE)` | `STRING` | `length_semantics=BYTE` preserved. In UTF-8 a 200-**byte** column holds fewer than 200 multibyte characters. |
+| `AMOUNT` | `NUMBER(12,2)` | `DECIMAL` | Trailing zero preserved: `"1250000.00"`, not `"1250000.0"`. Required for financial reconciliation. |
+| `STATUS` | `VARCHAR2(20 BYTE)` | `STRING` | Simple string — baseline reference. |
+| `PLACED_AT` | `DATE` | `ORACLE_DATE` | Oracle `DATE` includes a time component. Wire format is always `"YYYY-MM-DDTHH:MM:SS"`. Mapping it to `logical_type=DATE` would silently drop the time. |
+| `SETTLED_TS` | `TIMESTAMP(9) WITH TIME ZONE` | `TIMESTAMP_TZ` | 9-digit nanosecond precision **and** offset preserved verbatim; never normalized to UTC. Two decisions in one column. |
+| `IS_PRIORITY` | `BOOLEAN` | `BOOLEAN` | Native boolean → JSON `true`/`false`. Contrast `BIT` (`logical_type=BIT` → integer `0/1`) and `TINYINT(1)` (`logical_type=TINYINT1` → integer `0/1`). Three logical types for three distinct semantics. |
+| `ORDER_NOTES` | `CLOB` | `STRING_LOB` | LOB overflow vs. genuine null. Both produce JSON `null` — only the `_null_columns` and `_lob_overflow` arrays distinguish them. |
+| `EMBEDDING` | `VECTOR(4, FLOAT32)` | `VECTOR` | Type metadata (`dimensions`, `element_type`) lives in the schema only — never repeated in DML payloads. Wire format: JSON array of numbers. |
+| `SLA_WINDOW` | `INTERVAL DAY(2) TO SECOND(6)` | `INTERVAL_DS` | Wire format: ISO 8601 duration `"P0DT4H0M0.000000S"`, preserving day/hour/minute/second structure rather than collapsing to total seconds. |
+
+---
+
+# Event 1 of 6 — STREAM_METADATA
+
+### Session Open — First Event to the Consumer
+
+STREAM_METADATA is session-scoped: it is emitted to each connecting consumer before any other events. It is **not** part of the durable stream and does **not** participate in schema ordering — OBJECT_METADATA is the schema ordering anchor.
+
+```json
+{
+  "specversion":     "1.1",
+  "id":              "stream-meta-2026-0503-001",
+  "source":          "//oracle-prod.acme.com/ORCL/FINANCE",
+  "type":            "com.acme.cdc.meta.STREAM_METADATA",
+  "time":            "2026-05-03T09:00:00.000Z",
+  "datacontenttype": "application/json",
+  "cdcspecversion":  "0.2",
+  "data": {
+    "producer":                   "Oracle GoldenGate 26.1",
+    "opencdc_version":            "0.2",
+    "source_db":                  "Oracle 23ai",
+    "capture_mode":               "GoldenGate Native",
+    "tables":                     ["FINANCE.CUSTOMER_ORDERS"],
+    "heartbeat_interval_seconds": 30,
+    "schema_delivery": {
+      "schema_on_change":     true,
+      "schema_on_reconnect":  true,
+      "schema_on_each_event": false,
+      "schema_by_reference":  false
+    },
+    "sequence_continuity":        "guaranteed"
+  }
+}
+```
+
+**Session vs. durable stream.** STREAM_METADATA is sent only to the connecting consumer; it is not inserted into the durable event log. On reconnect the producer re-emits STREAM_METADATA followed by current OBJECT_METADATA events (Schema on Reconnect, Section 4.5.2), then resumes the durable stream from the saved `cdcpos`. The producer declares its active schema-delivery modes in the `schema_delivery` object (rule P-SCHEMA-3).
+
+---
+
+# Event 2 of 6 — OBJECT_METADATA
+
+### Schema Event — Emitted Once Before Any Row Events
+
+This single event carries the complete type information for every subsequent INSERT, UPDATE, and DELETE. Its `id` (`"schema-CUSTOMER_ORDERS-v1"`) is referenced by every DML event via the `dataschema` CloudEvents field. Type metadata is never repeated in DML payloads.
+
+**Schema overhead.** This one event is the entire schema cost for any number of subsequent DML events — O(columns), paid once. `schema_version` increments only on a structural DDL change; re-emitting OBJECT_METADATA for reconnection or replay does **not** increment it (Section 4.2).
+
+```json
+{
+  "specversion":     "1.1",
+  "id":              "schema-CUSTOMER_ORDERS-v1",
+  "source":          "//oracle-prod.acme.com/ORCL/FINANCE",
+  "subject":         "FINANCE.CUSTOMER_ORDERS",
+  "type":            "com.acme.cdc.meta.OBJECT_METADATA",
+  "time":            "2026-05-03T09:00:00.100Z",
+  "datacontenttype": "application/json",
+  "cdcspecversion":  "0.2",
+  "data": {
+    "table":          { "catalog": "ORCL", "schema": "FINANCE", "name": "CUSTOMER_ORDERS" },
+    "schema_version": 1,
+    "primary_key":    ["ORDER_ID"],
+    "columns": [
+      {
+        "name": "ORDER_ID", "ordinal": 1,
+        "source_type": "NUMBER(19,0)",        // verbatim DDL — never normalized
+        "logical_type": "DECIMAL",            // canonical type — authoritative for decoding
+        "parameters": { "precision": 19, "scale": 0 },
+        "nullable": false, "pk": true
+        // Wire encoding: exact decimal STRING. NUMBER(19,0) can reach 10^19,
+        // exceeding signed INT64 and the JSON safe-integer range.
+      },
+      {
+        "name": "CUSTOMER_REF", "ordinal": 2,
+        "source_type": "VARCHAR2(200 BYTE)",
+        "logical_type": "STRING",
+        "parameters": { "max_length": 200, "length_semantics": "BYTE" },
+        "nullable": false, "pk": false
+        // length_semantics=BYTE: in UTF-8, multibyte chars consume 2-4 bytes each,
+        // so a 200-BYTE column may hold fewer than 200 characters.
+      },
+      {
+        "name": "AMOUNT", "ordinal": 3,
+        "source_type": "NUMBER(12,2)",
+        "logical_type": "DECIMAL",
+        "parameters": { "precision": 12, "scale": 2 },
+        "nullable": false, "pk": false
+        // Wire encoding: "1187500.00" — trailing zero preserved (P-TYPE-4: no precision loss).
+      },
+      {
+        "name": "STATUS", "ordinal": 4,
+        "source_type": "VARCHAR2(20 BYTE)",
+        "logical_type": "STRING",
+        "parameters": { "max_length": 20, "length_semantics": "BYTE" },
+        "nullable": false, "pk": false
+      },
+      {
+        "name": "PLACED_AT", "ordinal": 5,
+        "source_type": "DATE",
+        "logical_type": "ORACLE_DATE",        // NOT "DATE" — Oracle DATE carries a time component
+        "parameters": {},
+        "nullable": false, "pk": false
+        // logical_type=ORACLE_DATE mandates the time component always be included.
+        // Wire format: "2026-05-03T14:23:00"  (NOT "2026-05-03")
+      },
+      {
+        "name": "SETTLED_TS", "ordinal": 6,
+        "source_type": "TIMESTAMP(9) WITH TIME ZONE",
+        "logical_type": "TIMESTAMP_TZ",
+        "parameters": { "precision": 9 },
+        "nullable": true, "pk": false
+        // precision=9: nanoseconds travel in the stream; consumers decide whether to truncate.
+        // Timezone offset MUST be preserved verbatim — not normalized to UTC.
+        // Wire format: "2026-05-03T16:37:44.003819200+05:30"
+      },
+      {
+        "name": "IS_PRIORITY", "ordinal": 7,
+        "source_type": "BOOLEAN",
+        "logical_type": "BOOLEAN",
+        "parameters": {},
+        "nullable": false, "pk": false
+        // BOOLEAN -> JSON true/false. (BIT -> integer 0/1; TINYINT1 -> integer 0/1.)
+        // Three logical types for three genuinely distinct semantics.
+      },
+      {
+        "name": "ORDER_NOTES", "ordinal": 8,
+        "source_type": "CLOB",
+        "logical_type": "STRING_LOB",
+        "parameters": {},
+        "nullable": true, "pk": false,
+        "lob": true                            // signals _lob_overflow may appear for this column
+      },
+      {
+        "name": "EMBEDDING", "ordinal": 9,
+        "source_type": "VECTOR(4, FLOAT32)",
+        "logical_type": "VECTOR",
+        "parameters": { "dimensions": 4, "element_type": "FLOAT32" },
+        "nullable": true, "pk": false
+        // dimensions and element_type are schema-time metadata only; they never
+        // repeat in DML events. Wire format: JSON array, e.g. [0.1231, -0.4560, 0.7891, 0.0123]
+      },
+      {
+        "name": "SLA_WINDOW", "ordinal": 10,
+        "source_type": "INTERVAL DAY(2) TO SECOND(6)",
+        "logical_type": "INTERVAL_DS",
+        "parameters": { "day_precision": 2, "sec_precision": 6 },
+        "nullable": true, "pk": false
+        // Wire format: ISO 8601 duration string "P0DT4H0M0.000000S".
+        // Collapsing to total seconds would lose the semantic structure.
+      }
+    ],
+    "json_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id":     "urn:opencdc:schema:FINANCE.CUSTOMER_ORDERS:v1",
+      "type":    "object",
+      "additionalProperties": false,          // closed-world: unknown fields = conformance failure
+      "properties": {
+        "ORDER_ID":     { "oneOf": [{ "type": "string" },  { "type": "null" }] },
+        "CUSTOMER_REF": { "oneOf": [{ "type": "string" },  { "type": "null" }] },
+        "AMOUNT":       { "oneOf": [{ "type": "string" },  { "type": "null" }] },
+        "STATUS":       { "oneOf": [{ "type": "string" },  { "type": "null" }] },
+        "PLACED_AT":    { "oneOf": [{ "type": "string" },  { "type": "null" }] },
+        "SETTLED_TS":   { "oneOf": [{ "type": "string" },  { "type": "null" }] },
+        "IS_PRIORITY":  { "oneOf": [{ "type": "boolean" }, { "type": "null" }] },
+        "ORDER_NOTES":  { "oneOf": [{ "type": "string" },  { "type": "null" }] },
+        "EMBEDDING":    { "oneOf": [{ "type": "array", "items": { "type": "number" } }, { "type": "null" }] },
+        "SLA_WINDOW":   { "oneOf": [{ "type": "string" },  { "type": "null" }] }
+      }
+    }
+  }
+}
+```
+
+---
+
+# Event 3 of 6 — INSERT
+
+### Transaction 1 · cdcxid `1510528009.5.13.0001`
+
+```json
+{
+  // -- CloudEvents envelope --
+  "specversion":     "1.1",
+  "id":              "7f3a2b10-e14c-4d8a-9f62-3c1d8e4b5a01",  // idempotency key
+  "source":          "//oracle-prod.acme.com/ORCL/FINANCE",
+  "subject":         "FINANCE.CUSTOMER_ORDERS",
+  "type":            "com.acme.cdc.dml.INSERT",
+  "time":            "2026-05-03T09:53:01.000Z",
+  "datacontenttype": "application/json",
+  "dataschema":      "schema-CUSTOMER_ORDERS-v1",             // references OBJECT_METADATA id
+  "cdcspecversion":  "0.2",
+  "cdcxid":          "1510528009.5.13.0001",                  // transaction identity
+  "cdctxorder":      0,                                       // 0-based position within transaction
+  "cdcpos":          "000000005DE4A891:1",                    // opaque resume handle
+  "partitionkey":    "1001",                                  // P-ORD-6: all events of this txn share this key
+  "sequence":        "10001",                                 // global monotonic counter
+  // -- Payload: values only, no type metadata repeated --
+  "data": {
+    "table":       { "catalog": "ORCL", "schema": "FINANCE", "name": "CUSTOMER_ORDERS" },
+    "primary_key": ["ORDER_ID"],
+    "before":      null,                                      // always null for INSERT
+    "after": {
+      "ORDER_ID":     "1001",                  // DECIMAL -> exact string, not JSON number 1001
+      "CUSTOMER_REF": "CUST-ACME-77291",
+      "AMOUNT":       "1250000.00",            // trailing zero preserved
+      "STATUS":       "PENDING",
+      "PLACED_AT":    "2026-05-03T14:23:00",   // ORACLE_DATE: time always included
+      "SETTLED_TS":   null,
+      "IS_PRIORITY":  true,                    // BOOLEAN -> JSON true, not integer 1
+      "ORDER_NOTES":  null,
+      "EMBEDDING":    [0.1231, -0.4560, 0.7891, 0.0123],
+      "SLA_WINDOW":   "P0DT4H0M0.000000S"      // INTERVAL_DS -> ISO 8601 duration
+    },
+    "_null_columns": ["SETTLED_TS", "ORDER_NOTES"],           // both are genuinely null
+    "_lob_overflow": [],                                      // no uncaptured LOBs
+    "pos": {
+      "lsn":              "000000005DE4A891",
+      "source_timestamp": "2026-05-03T09:53:00.881Z",
+      "lsn_offset":       1,
+      "native_position":  "1510528009.5.13.0001:1"
+    }
+  }
+}
+```
+
+**Conformance points.** `ORDER_ID` is `"1001"` — a string, because `DECIMAL` always wire-encodes as an exact decimal string regardless of scale. `AMOUNT` keeps its trailing zero (`"1250000.00"`); a JSON number would silently drop it. `PLACED_AT` carries a time component because `logical_type=ORACLE_DATE` mandates it. `IS_PRIORITY` is the JSON boolean `true`. `_null_columns` lists the two genuinely-null columns; `_lob_overflow` is empty. `EMBEDDING` carries no type metadata — `dimensions` and `element_type` were established once in Event 2. `partitionkey "1001"` satisfies P-ORD-6: every event of this transaction shares the key.
+
+---
+
+# Event 4 of 6 — UPDATE
+
+### Transaction 2 · cdcxid `1510528009.5.14.0001` · Partial Image
+
+This event demonstrates three producer behaviors simultaneously: partial UPDATE images via `changed_columns`, nanosecond timestamps with preserved offsets, and the LOB null-vs-overflow distinction.
+
+```json
+{
+  // -- CloudEvents envelope --
+  "specversion":     "1.1",
+  "id":              "7f3a2b10-e14c-4d8a-9f62-3c1d8e4b5a02",
+  "source":          "//oracle-prod.acme.com/ORCL/FINANCE",
+  "subject":         "FINANCE.CUSTOMER_ORDERS",
+  "type":            "com.acme.cdc.dml.UPDATE",
+  "time":            "2026-05-03T11:07:44.000Z",
+  "datacontenttype": "application/json",
+  "dataschema":      "schema-CUSTOMER_ORDERS-v1",
+  "cdcspecversion":  "0.2",
+  "cdcxid":          "1510528009.5.14.0001",                  // new transaction -> new cdcxid
+  "cdctxorder":      0,
+  "cdcpos":          "000000005DE4B102:1",
+  "partitionkey":    "1001",                                  // same key as INSERT (same ORDER_ID)
+  "sequence":        "10002",
+  // -- Payload --
+  "data": {
+    "table":           { "catalog": "ORCL", "schema": "FINANCE", "name": "CUSTOMER_ORDERS" },
+    "primary_key":     ["ORDER_ID"],
+    "changed_columns": ["STATUS", "AMOUNT", "SETTLED_TS", "ORDER_NOTES"],
+    // Partial image: only changed columns + PK appear in before/after.
+    // CUSTOMER_REF, PLACED_AT, IS_PRIORITY, EMBEDDING, SLA_WINDOW are absent =>
+    // unchanged (NOT null). See Appendix A.1 for the consumer interpretation rule.
+    "before": {
+      "ORDER_ID":    "1001",
+      "STATUS":      "PENDING",
+      "AMOUNT":      "1250000.00",
+      "SETTLED_TS":  null,                     // was genuinely null before this update
+      "ORDER_NOTES": null                      // was genuinely null before this update
+    },
+    "after": {
+      "ORDER_ID":    "1001",
+      "STATUS":      "APPROVED",
+      "AMOUNT":      "1187500.00",
+      "SETTLED_TS":  "2026-05-03T16:37:44.003819200+05:30",
+      //                                        ^ 9 fractional digits (nanoseconds)
+      //                                        ^ +05:30 offset preserved, NOT normalized to UTC
+      "ORDER_NOTES": null                      // CLOB updated but content not in the redo log
+    },
+    "_null_columns": ["SETTLED_TS"],           // SETTLED_TS in "before" was genuinely null
+    "_lob_overflow": ["ORDER_NOTES"],          // ORDER_NOTES in "after" = content NOT CAPTURED
+    // Both SETTLED_TS (before) and ORDER_NOTES (after) are JSON null. The two arrays are the
+    // only structural signal distinguishing a genuine null from uncaptured-but-present content.
+    "pos": {
+      "lsn":              "000000005DE4B102",
+      "source_timestamp": "2026-05-03T11:07:43.992Z",
+      "lsn_offset":       1,
+      "native_position":  "1510528009.5.14.0001:1"
+    }
+  }
+}
+```
+
+**Conformance points.** With `changed_columns` present this is a partial image: `CUSTOMER_REF`, `PLACED_AT`, `IS_PRIORITY`, `EMBEDDING`, and `SLA_WINDOW` are absent and therefore unchanged — a full-fidelity consumer must not overwrite them with null (Appendix A.1). `SETTLED_TS` in `after` keeps 9 fractional digits and its `+05:30` offset; UTC normalization would irreversibly destroy the offset context. The decisive distinction in this event: `_null_columns` carries `SETTLED_TS` (genuinely null in the source row) while `_lob_overflow` carries `ORDER_NOTES` (its CLOB content existed but was not available to the capture layer). Both appear as JSON `null`; the arrays are the only way to tell them apart.
+
+---
+
+# Event 5 of 6 — DELETE
+
+### Transaction 3 · cdcxid `1510528009.5.15.0001` · Full Image
+
+DELETE always carries a full before image — no `changed_columns`. The before image reflects the row state at the moment of deletion (i.e., the post-UPDATE state).
+
+```json
+{
+  // -- CloudEvents envelope --
+  "specversion":     "1.1",
+  "id":              "7f3a2b10-e14c-4d8a-9f62-3c1d8e4b5a03",
+  "source":          "//oracle-prod.acme.com/ORCL/FINANCE",
+  "subject":         "FINANCE.CUSTOMER_ORDERS",
+  "type":            "com.acme.cdc.dml.DELETE",
+  "time":            "2026-05-03T14:55:22.000Z",
+  "datacontenttype": "application/json",
+  "dataschema":      "schema-CUSTOMER_ORDERS-v1",
+  "cdcspecversion":  "0.2",
+  "cdcxid":          "1510528009.5.15.0001",
+  "cdctxorder":      0,
+  "cdcpos":          "000000005DE4C847:1",
+  "partitionkey":    "1001",
+  "sequence":        "10003",
+  // -- Payload --
+  "data": {
+    "table":       { "catalog": "ORCL", "schema": "FINANCE", "name": "CUSTOMER_ORDERS" },
+    "primary_key": ["ORDER_ID"],
+    // No changed_columns -> DELETE always carries a full before image.
+    "before": {
+      "ORDER_ID":     "1001",
+      "CUSTOMER_REF": "CUST-ACME-77291",
+      "AMOUNT":       "1187500.00",            // reflects post-UPDATE state
+      "STATUS":       "APPROVED",              // reflects post-UPDATE state
+      "PLACED_AT":    "2026-05-03T14:23:00",
+      "SETTLED_TS":   "2026-05-03T16:37:44.003819200+05:30",
+      "IS_PRIORITY":  true,
+      "ORDER_NOTES":  null,                    // genuinely null at time of deletion
+      "EMBEDDING":    [0.1231, -0.4560, 0.7891, 0.0123],
+      "SLA_WINDOW":   "P0DT4H0M0.000000S"
+    },
+    "after":         null,                     // always null for DELETE
+    "_null_columns": ["ORDER_NOTES"],          // genuinely null at deletion time
+    "_lob_overflow": [],
+    // ORDER_NOTES was in _lob_overflow during the UPDATE (content not captured).
+    // By deletion time the column is genuinely null, so it correctly appears in _null_columns.
+    "pos": {
+      "lsn":              "000000005DE4C847",
+      "source_timestamp": "2026-05-03T14:55:21.774Z",
+      "lsn_offset":       1,
+      "native_position":  "1510528009.5.15.0001:1"
+    }
+  }
+}
+```
+
+**Conformance points.** No `changed_columns` — a full before image is mandatory for DELETE; `after` is null. Note the state evolution of `ORDER_NOTES`: uncaptured (`_lob_overflow`) in the UPDATE, but genuinely null (`_null_columns`) by deletion time — the arrays track the column's real state at each event. `AMOUNT "1187500.00"` and `STATUS "APPROVED"` correctly reflect the post-UPDATE state. `EMBEDDING` travels again in the full before image; its schema metadata was still paid only once, in Event 2. All three transactions share `partitionkey "1001"`, keeping them co-partitioned and allowing a consumer to apply them in order.
+
+---
+
+# Event 6 of 6 — HEARTBEAT
+
+### Idle-Period Liveness Signal · 30 seconds after DELETE
+
+Emitted within `heartbeat_interval_seconds` (30s) after the DELETE transaction with no further DML activity. HEARTBEAT is mandatory during idle periods (rule T-HEARTBEAT).
+
+```json
+{
+  "specversion":     "1.1",
+  "id":              "hb-20260503-145552-001",
+  "source":          "//oracle-prod.acme.com/ORCL/FINANCE",
+  "type":            "com.acme.cdc.meta.HEARTBEAT",
+  "time":            "2026-05-03T14:55:52.000Z",
+  "datacontenttype": "application/json",
+  "cdcspecversion":  "0.2",
+  "cdcpos":          "000000005DE4C847:1",     // last confirmed position
+  "data": {
+    "source_lag_ms":  312,                     // capture is 312ms behind source commit time
+    "capture_active": true,                    // false => capture process paused or failed
+    "lsn_reset":      false,
+    "sequence_reset": false,
+    "pos": {
+      "lsn":              "000000005DE4C847",
+      "source_timestamp": "2026-05-03T14:55:21.774Z",
+      "lsn_offset":       1
+    }
+  }
+}
+```
+
+**Why HEARTBEAT is a first-class event type.** Without it, a consumer receiving no events cannot distinguish *(a)* a quiet source database from *(b)* a crashed capture process — operationally different situations needing different responses. `source_lag_ms=312` makes capture lag visible from the stream itself; `capture_active=true` confirms the capture layer is running (a `false` value signals it has paused or errored). Because HEARTBEAT is a distinct `type`, infrastructure routers can filter on it without inspecting payloads.
+
+---
+
+# Stream Summary
+
+| Event | Type | cdcxid | Key conformance points |
+| --- | --- | --- | --- |
+| 1 | STREAM_METADATA | — | Session handshake — not a schema anchor, not in the durable stream. |
+| 2 | OBJECT_METADATA | — | Schema paid once for 10 columns; all DML events reference it via `dataschema`. |
+| 3 | INSERT | `…13.0001` | `ORACLE_DATE` with time; `DECIMAL` as string; `BOOLEAN` as true/false; `_null_columns` for genuine nulls; `VECTOR` as JSON array; `INTERVAL_DS` as ISO 8601. |
+| 4 | UPDATE | `…14.0001` | Partial image via `changed_columns` (absent = unchanged, not null); `_lob_overflow` ≠ `_null_columns`; `TIMESTAMP_TZ` with 9 nanosecond digits + offset preserved. |
+| 5 | DELETE | `…15.0001` | Full before image; `after=null`; `_null_columns` reflects deletion-time state accurately. |
+| 6 | HEARTBEAT | — | Mandatory liveness signal; `source_lag_ms` + `capture_active` visible in-stream. |
+
+---
+
+# Appendix (Informative): Cross-Tool Behavior Context
+
+> **Non-normative.** This section does not bear on OpenCDC conformance. The specification itself (v0.6) is vendor-neutral and contains no competitive comparison; the table below is retained as internal positioning context only and reflects general behavior of other tools at the time of writing, not a conformance statement.
+
+| Design point | OpenCDC | Behavior commonly seen elsewhere |
+| --- | --- | --- |
+| Schema overhead | O(columns), once per table | Per-message schema repetition, or a proprietary/registry-bound model |
+| Oracle `DATE` | `ORACLE_DATE`: time always included | Often mapped to a calendar-only `DATE`, dropping the time |
+| `DECIMAL` trailing zeros | `"1187500.00"` preserved as a string | Scaled-integer or lossy numeric encodings |
+| `TIMESTAMP_TZ` offset | Offset preserved verbatim | Frequently normalized to UTC, losing the original offset |
+| LOB null vs. overflow | Structurally distinct (`_null_columns` vs `_lob_overflow`) | Both states commonly collapsed to a single `null` |
+| `BOOLEAN` | `BOOLEAN` → true/false vs `BIT`/`TINYINT1` → 0/1 | Source-type dependent, often without an explicit logical type |
+| `INTERVAL` | ISO 8601 duration string | Not consistently standardized across engines |
+| `VECTOR` | JSON array; schema carries dimensions + element type | Limited or engine-specific support |
+| Heartbeat | Mandatory first-class event type | Optional, per-connector, or modeled as DML on a special table |
+| Partition alignment | P-ORD-6: all txn events share one `partitionkey` | Not always guaranteed; a transaction may split across partitions |
+
+---
+
+*OpenCDC Payload Examples · Annotated Reference · Aligned to Specification v0.6 · June 2026 · OpenCDC Working Group*
+
+> **Confidential — Oracle Restricted \ Employees Only**
