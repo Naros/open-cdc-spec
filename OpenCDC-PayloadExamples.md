@@ -1,5 +1,3 @@
-> **Confidential — Oracle Restricted \ Employees Only**
-
 # OpenCDC — Payload Examples (Annotated Reference)
 
 **Three Transactions: INSERT · UPDATE · DELETE**
@@ -460,5 +458,3 @@ Emitted within `heartbeat_interval_seconds` (30s) after the DELETE transaction w
 ---
 
 *OpenCDC Payload Examples · Annotated Reference · Aligned to Specification v0.6 · June 2026 · OpenCDC Working Group*
-
-> **Confidential — Oracle Restricted \ Employees Only**
