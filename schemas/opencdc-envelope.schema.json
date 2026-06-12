@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencdc.org/schemas/opencdc-envelope.schema.json",
+  "title": "OpenCDC CloudEvents Envelope (Spec v0.6.x, wire 0.2) -- spec-literal encoding of Sections 3.1 and 3.3",
+  "type": "object",
+  "properties": {
+    "specversion": {
+      "const": "1.1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^//"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "\\.cdc\\.(dml|ddl|meta|snapshot)\\."
+    },
+    "time": {
+      "type": "string"
+    },
+    "datacontenttype": {
+      "const": "application/json"
+    },
+    "dataschema": {
+      "type": "string"
+    },
+    "cdcspecversion": {
+      "type": "string"
+    },
+    "cdcxid": {
+      "type": "string"
+    },
+    "cdctxorder": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cdcpos": {
+      "type": "string"
+    },
+    "partitionkey": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "subject",
+    "type",
+    "time",
+    "datacontenttype",
+    "cdcspecversion",
+    "cdcpos",
+    "data"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "pattern": "\\.cdc\\.(dml|ddl)\\."
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "dataschema",
+          "cdcxid",
+          "cdctxorder"
+        ]
+      }
+    }
+  ]
+}

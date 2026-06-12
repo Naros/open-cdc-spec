@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencdc.org/schemas/opencdc-heartbeat.schema.json",
+  "title": "OpenCDC HEARTBEAT data payload (Sections 10.1, 8.4.2)",
+  "type": "object",
+  "properties": {
+    "source_lag_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "capture_active": {
+      "type": "boolean"
+    },
+    "lsn_reset": {
+      "type": "boolean"
+    },
+    "sequence_reset": {
+      "type": "boolean"
+    },
+    "pos": {
+      "type": "object",
+      "properties": {
+        "lsn": {
+          "type": "string"
+        },
+        "source_timestamp": {
+          "type": "string"
+        },
+        "lsn_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "native_position": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lsn",
+        "source_timestamp",
+        "lsn_offset"
+      ]
+    }
+  },
+  "required": [
+    "lsn_reset",
+    "sequence_reset"
+  ]
+}

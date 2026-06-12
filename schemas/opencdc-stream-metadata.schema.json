@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencdc.org/schemas/opencdc-stream-metadata.schema.json",
+  "title": "OpenCDC STREAM_METADATA data payload (Sections 10.4, 4.4, 8.4.1)",
+  "type": "object",
+  "properties": {
+    "producer": {
+      "type": "string"
+    },
+    "opencdc_version": {
+      "type": "string"
+    },
+    "source_db": {
+      "type": "string"
+    },
+    "capture_mode": {
+      "type": "string"
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "heartbeat_interval_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "schema_delivery": {
+      "type": "object",
+      "properties": {
+        "schema_on_change": {
+          "const": true
+        },
+        "schema_on_reconnect": {
+          "type": "boolean"
+        },
+        "schema_on_each_event": {
+          "type": "boolean"
+        },
+        "schema_by_reference": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema_on_change",
+        "schema_on_reconnect",
+        "schema_on_each_event"
+      ],
+      "anyOf": [
+        {
+          "properties": {
+            "schema_on_reconnect": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "schema_on_each_event": {
+              "const": true
+            }
+          }
+        }
+      ]
+    },
+    "sequence_continuity": {
+      "enum": [
+        "guaranteed",
+        "best_effort",
+        "reset"
+      ]
+    }
+  },
+  "required": [
+    "schema_delivery",
+    "sequence_continuity"
+  ]
+}

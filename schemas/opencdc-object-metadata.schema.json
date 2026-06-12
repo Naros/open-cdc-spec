@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencdc.org/schemas/opencdc-object-metadata.schema.json",
+  "title": "OpenCDC OBJECT_METADATA data payload (Sections 4.2, 4.3)",
+  "type": "object",
+  "properties": {
+    "table": {
+      "type": "object",
+      "properties": {
+        "catalog": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "name"
+      ]
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "primary_key": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "ordinal": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "logical_type": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object"
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "pk": {
+            "type": "boolean"
+          },
+          "lob": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "ordinal",
+          "source_type",
+          "logical_type",
+          "parameters",
+          "nullable",
+          "pk"
+        ]
+      }
+    },
+    "json_schema": {
+      "type": [
+        "object",
+        "string"
+      ]
+    }
+  },
+  "required": [
+    "table",
+    "schema_version",
+    "primary_key",
+    "columns",
+    "json_schema"
+  ]
+}

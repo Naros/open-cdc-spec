@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencdc.org/schemas/opencdc-dml.schema.json",
+  "title": "OpenCDC DML data payload incl. TRUNCATE (Sections 5.2, 10.2.4, 10.2.5)",
+  "type": "object",
+  "properties": {
+    "table": {
+      "type": "object",
+      "properties": {
+        "catalog": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "name"
+      ]
+    },
+    "primary_key": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "before": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "after": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "changed_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "_null_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "_lob_overflow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pos": {
+      "type": "object",
+      "properties": {
+        "lsn": {
+          "type": "string"
+        },
+        "source_timestamp": {
+          "type": "string"
+        },
+        "lsn_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "native_position": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lsn",
+        "source_timestamp",
+        "lsn_offset"
+      ]
+    },
+    "checksum": {
+      "type": "string"
+    },
+    "_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://opencdc.org/schemas/opencdc-object-metadata.schema.json",
+      "title": "OpenCDC OBJECT_METADATA data payload (Sections 4.2, 4.3)",
+      "type": "object",
+      "properties": {
+        "table": {
+          "type": "object",
+          "properties": {
+            "catalog": {
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "schema",
+            "name"
+          ]
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "primary_key": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "ordinal": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "source_type": {
+                "type": "string"
+              },
+              "logical_type": {
+                "type": "string"
+              },
+              "parameters": {
+                "type": "object"
+              },
+              "nullable": {
+                "type": "boolean"
+              },
+              "pk": {
+                "type": "boolean"
+              },
+              "lob": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "ordinal",
+              "source_type",
+              "logical_type",
+              "parameters",
+              "nullable",
+              "pk"
+            ]
+          }
+        },
+        "json_schema": {
+          "type": [
+            "object",
+            "string"
+          ]
+        }
+      },
+      "required": [
+        "table",
+        "schema_version",
+        "primary_key",
+        "columns",
+        "json_schema"
+      ]
+    },
+    "truncate_details": {
+      "type": "object",
+      "properties": {
+        "cascade": {
+          "enum": [
+            true,
+            false,
+            "not_applicable",
+            "unknown"
+          ]
+        },
+        "sequence_reset": {
+          "enum": [
+            true,
+            false,
+            "not_applicable",
+            "unknown"
+          ]
+        },
+        "multi_table": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "table",
+    "primary_key",
+    "before",
+    "after",
+    "_null_columns",
+    "_lob_overflow",
+    "pos"
+  ]
+}

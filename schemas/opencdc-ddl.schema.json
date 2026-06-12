@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencdc.org/schemas/opencdc-ddl.schema.json",
+  "title": "OpenCDC DDL data payload (Section 9.1)",
+  "type": "object",
+  "properties": {
+    "table": {
+      "type": "object",
+      "properties": {
+        "catalog": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "name"
+      ]
+    },
+    "ddl": {
+      "type": "object",
+      "properties": {
+        "statement": {
+          "type": "string"
+        },
+        "statement_truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "statement"
+      ]
+    },
+    "pos": {
+      "type": "object",
+      "properties": {
+        "lsn": {
+          "type": "string"
+        },
+        "source_timestamp": {
+          "type": "string"
+        },
+        "lsn_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "native_position": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lsn",
+        "source_timestamp",
+        "lsn_offset"
+      ]
+    }
+  },
+  "required": [
+    "table",
+    "ddl",
+    "pos"
+  ]
+}
