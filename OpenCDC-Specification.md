@@ -641,7 +641,7 @@ Key use cases: stateless consumption where the consumer process has no persisten
 
 When active, the dataschema CloudEvents field on DML events contains a resolvable URL to an external schema registry endpoint. The producer MUST still emit standalone OBJECT_METADATA events in the stream per Schema on Change (Section 4.5.1). Schema by Reference does not replace inline schema delivery -- it adds an external resolution path as a supplement.
 
-Primary use case: deployments backed by an external schema registry. MUST NOT be the sole schema acquisition path (see Section 4.4 Reconnect Coverage rule). A consumer that cannot reach the registry MUST fall back to stream-embedded OBJECT_METADATA events.
+Because the producer guarantees stream-embedded OBJECT_METADATA is always available (§4.5.1), a consumer that cannot reach the registry can fall back to the stream-embedded schema. See Appendix A for consumer service-level guidance on registry fallback behavior.
 
 # 5. DML Payload Structure
 
@@ -1088,7 +1088,9 @@ The following are intentionally outside scope: specific LSN normalization algori
 
 # 9. DDL Events
 
-DDL events are first-class CloudEvents that carry schema change operations transactionally ordered with DML events in the same stream. Routing schema changes to a channel separate from the data stream would break the transactional correlation between a schema change and the data changes that depend on it; OpenCDC keeps both in one ordered stream.
+DDL events are first-class CloudEvents that carry schema change operations in the same logically ordered sequence as DML events. A conformant producer MUST emit DDL and DML events in source log order, ensuring that a schema change and the data changes that depend on it are always positionally correlated. Routing DDL to a channel physically separate from the data stream, without preserving this logical ordering guarantee, would break that correlation; the OpenCDC ordering fields (cdcxid, cdctxorder, pos.lsn, pos.lsn_offset) are sufficient to reconstruct the total order regardless of physical transport topology, but the producer obligation to maintain that order is non-negotiable.
+
+> **Note:** Separate physical channels (e.g., routing DDL to a distinct Kafka topic) are not prohibited by this specification. The invariant is logical order, not physical co-location. A producer that routes DDL and DML to separate channels while preserving the logical ordering guarantee — expressible via the ordering fields above — satisfies this requirement. The specification defines the ordering contract; the physical topology is a pipeline implementation detail.
 
 ## 9.1 DDL Payload Structure
 
@@ -1437,10 +1439,7 @@ Durable Mode is the default and primary mode for OpenCDC. It is required for all
 
 ## 15.2 Ephemeral Mode
 
-**Ephemeral Mode Is NOT Conformant for Core Stories**
-Ephemeral Mode MUST NOT be used for the core durable-replication use cases (cross-vendor replication, same-type replication, lakehouse ingestion). Those use cases require zero data loss and durable replay; any implementation claiming conformance for them MUST operate in Durable Mode. Ephemeral Mode is valid only for use cases such as reactive AI-agent streams, live monitoring dashboards, alerting feeds, and any other case where the application explicitly accepts that events may be missed during outages without constituting a data integrity failure.
-
-Ephemeral Mode is appropriate for use cases where real-time event delivery is the priority and brief data loss is explicitly acceptable: reactive AI-agent pipelines, live dashboards, alerting systems, and monitoring feeds where a gap in coverage is tolerable.
+Ephemeral Mode is appropriate for use cases where real-time event delivery is the priority and brief data loss is explicitly acceptable — reactive AI-agent pipelines, live dashboards, alerting systems, and monitoring feeds — where a gap in coverage does not constitute a data integrity failure.
 
 - **Replay support**
   - Producer Obligation: OPTIONAL. Producer MAY support replay but is not required to. Stream position (cdcpos) MUST still be emitted on every event for consumers that choose to persist it.
@@ -2140,5 +2139,13 @@ The following are SHOULD-level best practices for production deployments. They a
 - **Type decode error isolation**
   - Recommendation: On encountering a value that cannot be decoded per its logical_type wire encoding rules, reject that column's value and null it with an error marker rather than failing the entire event.
   - Rationale: Prevents a single malformed column from blocking application of an otherwise valid event.
+
+## A.9 Operational Mode Selection Guidance
+
+The choice of operational mode is a deployment architecture decision made by the team building and operating the pipeline. The following guidance is non-normative.
+
+Ephemeral Mode SHOULD NOT be used for use cases that require zero data loss or a persistent target state — including cross-vendor replication, same-type replication, and lakehouse ingestion. These use cases depend on guaranteed event delivery and durable replay; a deployment using Ephemeral Mode for them accepts data loss risk that is incompatible with those use cases' correctness requirements. Deployments targeting these use cases SHOULD use Durable Mode.
+
+A single producer deployment MAY serve both Durable and Ephemeral consumers simultaneously against the same stream, provided the producer satisfies the Durable Mode producer obligations (Section 15.1), which are a superset of Ephemeral Mode obligations.
 
 OpenCDC Working Group -- Draft for Discussion
