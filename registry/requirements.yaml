@@ -1,0 +1,515 @@
+# OpenCDC Requirements Register
+# Source of truth for DERIVED sections (Section 17 Normative Summary, Section 19.1 matrix rows).
+# The specification body prose remains the source of truth for requirement semantics.
+# Levels: MUST / MUST NOT entries render into Section 17; SHOULD entries are register-only.
+
+meta:
+  spec_version: 0.6.8
+  updated: 2026-06-12
+  intro: >-
+    The following table consolidates the MUST requirements across the specification for implementer quick-reference. Producer obligations (P-*, producer-side T-*, S-*, and R-*) are normative for this specification. Consumer obligations (C-* and consumer-side R-*) are retained in this table for a complete cross-reference but are non-normative here; they are defined as service-level guidance in Appendix A. SHOULD requirements are not listed -- see the relevant section for the complete normative text.
+
+requirements:
+  - id: P-ORD-1
+    level: MUST
+    requirement: Emit events in source transaction log order
+    who: Producer
+    sections: [6.1]
+  - id: P-ORD-2
+    level: MUST
+    requirement: All events in same transaction carry same cdcxid
+    who: Producer
+    sections: [6.1]
+  - id: P-ORD-3
+    level: MUST
+    requirement: "cdctxorder is 0-based, monotonically increasing within transaction"
+    who: Producer
+    sections: [6.1]
+  - id: P-ORD-4
+    level: MUST
+    requirement: OBJECT_METADATA MUST precede first DML for a table
+    who: Producer
+    sections: [4.1, 6.1]
+  - id: P-ORD-5
+    level: MUST
+    requirement: "New OBJECT_METADATA MUST follow DDL, precede next DML"
+    who: Producer
+    sections: [4.1, 6.1]
+  - id: P-ORD-6
+    level: MUST
+    requirement: All events of same transaction MUST share same partitionkey
+    who: Producer
+    sections: [3.3, 6.1]
+  - id: P-ORD-7
+    level: MUST
+    requirement: "Multi-table TRUNCATE: one TRUNCATE event per named table; all events share the same cdcxid with sequential cdctxorder values"
+    who: Producer
+    sections: [6.1, 10.2.3]
+  - id: P-TYPE-1
+    level: MUST
+    requirement: source_type carries verbatim DDL -- no normalization
+    who: Producer
+    sections: [6.2]
+  - id: P-TYPE-2
+    level: MUST
+    requirement: logical_type from OpenCDC canonical vocabulary
+    who: Producer
+    sections: [6.2]
+  - id: P-TYPE-3
+    level: MUST
+    requirement: DML values encoded per logical_type wire rules
+    who: Producer
+    sections: [6.2]
+  - id: P-TYPE-4
+    level: MUST
+    requirement: No silent truncation or precision loss
+    who: Producer
+    sections: [6.2]
+  - id: C-TYPE-1
+    level: MUST
+    requirement: logical_type is the authoritative basis for decoding DML column values; consumers MUST NOT use source_type for decoding
+    who: Consumer
+    sections: [4.3]
+  - id: P-LOB-1
+    level: MUST
+    requirement: _null_columns and _lob_overflow distinguish null vs uncaptured
+    who: Producer
+    sections: [6.3]
+  - id: P-LOB-2
+    level: MUST
+    requirement: _null_columns and _lob_overflow present in every DML (even empty)
+    who: Producer
+    sections: [6.3]
+  - id: P-DML-1
+    level: MUST
+    requirement: "DML before/after value objects carry column data values only; source_type, logical_type, parameters, and nullability MUST NOT appear in row value objects"
+    who: Producer
+    sections: [4.1, 5]
+  - id: C-DML-1
+    level: MUST
+    requirement: Absent column in partial before/after image MUST be interpreted as unchanged -- not null and not deleted
+    who: Consumer
+    sections: [5.4]
+  - id: P-CONN-1
+    level: MUST
+    requirement: "Approach 1 reconnection: re-emit schemas on connection"
+    who: Producer
+    sections: [6.4]
+  - id: P-LOOP-1
+    level: MUST
+    requirement: Loop suppression in bidirectional sync (source field matching)
+    who: Producer
+    sections: [3.4]
+  - id: T-COMPLETE
+    level: MUST
+    requirement: Transaction complete when new cdcxid (or HEARTBEAT) observed after last event in group
+    who: Producer
+    sections: [8.3]
+  - id: T-NOINTERLEAVE
+    level: MUST NOT
+    requirement: Events from different transactions MUST NOT be interleaved
+    who: Producer
+    sections: [8.3]
+  - id: T-ORDER
+    level: MUST
+    requirement: cdctxorder MUST be gapless and monotonic within a transaction
+    who: Producer
+    sections: [8.3]
+  - id: T-HEARTBEAT
+    level: MUST
+    requirement: Producer MUST emit HEARTBEAT within heartbeat_interval_seconds after idle transaction
+    who: Producer
+    sections: [8.3]
+  - id: C-HB-1
+    level: MUST
+    requirement: Consumer MUST monitor HEARTBEAT receipt to distinguish idle stream from broken stream
+    who: Consumer
+    sections: [10.1]
+  - id: P-IDEM-1
+    level: MUST
+    requirement: Stable UUID id assigned at creation; same id during replay
+    who: Producer
+    sections: [11.2]
+  - id: C-ORD-1
+    level: MUST
+    requirement: Apply events in cdctxorder sequence within transaction
+    who: Consumer
+    sections: [Appendix A.1]
+  - id: C-ORD-2
+    level: MUST
+    requirement: Apply transactions in stream order; buffer out-of-order events
+    who: Consumer
+    sections: [Appendix A.1]
+  - id: C-ORD-3
+    level: MUST NOT
+    requirement: "On unknown dataschema: pause and request schema, or reject -- MUST NOT infer"
+    who: Consumer
+    sections: [Appendix A.1]
+  - id: C-SCHEMA-1
+    level: MUST
+    requirement: Detect schema version changes
+    who: Consumer
+    sections: [Appendix A.2]
+  - id: C-SCHEMA-2
+    level: MUST
+    requirement: Update schema cache on OBJECT_METADATA receipt
+    who: Consumer
+    sections: [Appendix A.2]
+  - id: C-SCHEMA-3
+    level: MUST
+    requirement: Do not apply DML with stale schema
+    who: Consumer
+    sections: [Appendix A.2]
+  - id: C-IDEM-1
+    level: MUST
+    requirement: "Deduplicate on (source, id)"
+    who: Consumer
+    sections: [Appendix A.3, A.7]
+  - id: C-IDEM-2
+    level: MUST
+    requirement: Discard duplicates silently without error
+    who: Consumer
+    sections: [Appendix A.3]
+  - id: C-IDEM-3
+    level: SHOULD
+    requirement: Idempotent apply semantics at the target level
+    who: Consumer
+    sections: [Appendix A.3]
+  - id: C-LOB-1
+    level: MUST
+    requirement: Check _lob_overflow before interpreting LOB null
+    who: Consumer
+    sections: [Appendix A.4]
+  - id: C-LOB-2
+    level: MUST
+    requirement: Do not treat lob_overflow null as schema-level null
+    who: Consumer
+    sections: [Appendix A.4]
+  - id: C-VAL-1
+    level: MUST
+    requirement: Validate DML against json_schema; reject on failure
+    who: Consumer
+    sections: [Appendix A.5]
+  - id: C-VAL-2
+    level: MUST
+    requirement: Reject events with unrecognized fields
+    who: Consumer
+    sections: [Appendix A.5]
+  - id: C-VAL-3
+    level: SHOULD
+    requirement: Verify CloudEvents envelope compliance for every received event
+    who: Consumer
+    sections: [Appendix A.5]
+  - id: R-POS-0
+    level: MUST
+    requirement: Ordering is guaranteed within a partitionkey; total cross-table ordering requires the CloudEvents sequence field
+    who: Consumer
+    sections: [8.2]
+  - id: R-POS-1
+    level: MUST
+    requirement: "Persist (pos.lsn, pos.lsn_offset) as structured resume position; persist cdcpos as primary replay handle"
+    who: Consumer
+    sections: [8.2]
+  - id: R-POS-2
+    level: MUST
+    requirement: Provide cdcpos on resume; producer replays from schema event
+    who: Both
+    sections: [8.2]
+  - id: R-POS-3
+    level: MUST
+    requirement: cdcpos is the authoritative resume handle; the payload pos object serves consumer-side ordering logic; both MUST be maintained
+    who: Both
+    sections: [8.2]
+  - id: R-POS-4
+    level: MUST
+    requirement: Replay preserves original event order
+    who: Producer
+    sections: [8.2]
+  - id: R-POS-5
+    level: MUST
+    requirement: At-least-once delivery is the minimum guarantee; duplicate events are permitted during replay
+    who: Producer
+    sections: [8.2]
+  - id: S-TLS-1
+    level: MUST
+    requirement: All connections use TLS 1.2+
+    who: Both
+    sections: [14.1]
+  - id: S-TLS-2
+    level: MUST NOT
+    requirement: Events containing sensitive column data MUST NOT be transmitted over unencrypted connections
+    who: Producer
+    sections: [14.1]
+  - id: S-TLS-3
+    level: MUST
+    requirement: Certificate validation MUST be enforced on both producer and consumer sides
+    who: Both
+    sections: [14.1]
+  - id: S-AUTH-1
+    level: MUST
+    requirement: Mutual authentication before stream establishment
+    who: Both
+    sections: [14.2]
+  - id: S-AUTH-2
+    level: MUST NOT
+    requirement: Credentials MUST NOT be embedded in event payloads or CloudEvents extension attributes
+    who: Producer
+    sections: [14.2]
+  - id: S-AUTHZ-1
+    level: SHOULD
+    requirement: "Table-level access control: consumers receive events only for authorized tables"
+    who: Producer
+    sections: [14.3]
+  - id: S-AUTHZ-2
+    level: SHOULD
+    requirement: "Column-level masking or exclusion for sensitive columns, per consumer identity"
+    who: Producer
+    sections: [14.3]
+  - id: P-SCHEMA-1
+    level: MUST
+    requirement: schema_on_change MUST always be true in STREAM_METADATA schema_delivery
+    who: Producer
+    sections: [4.4, 4.5.1]
+  - id: P-SCHEMA-2
+    level: MUST
+    requirement: At least one of schema_on_reconnect or schema_on_each_event MUST be true
+    who: Producer
+    sections: [4.4]
+  - id: P-SCHEMA-3
+    level: MUST
+    requirement: schema_delivery object MUST be present in every STREAM_METADATA event
+    who: Producer
+    sections: [4.4, 10.4]
+  - id: P-SCHEMA-4
+    level: MUST
+    requirement: "If schema_on_reconnect: false, then schema_on_each_event MUST be true"
+    who: Producer
+    sections: [4.4, 4.5.2]
+  - id: P-SCHEMA-5
+    level: MUST
+    requirement: "If schema_on_each_event: true, _schema object MUST be present in every DML data payload"
+    who: Producer
+    sections: [4.5.3]
+  - id: C-SCHEMA-4
+    level: MUST
+    requirement: Consumer MUST read schema_delivery in STREAM_METADATA and adapt schema acquisition behavior
+    who: Consumer
+    sections: [4.4]
+  - id: P-SEQ-1
+    level: MUST
+    requirement: "CloudEvents sequence value MUST be a non-negative decimal integer encoded as string, no leading zeros"
+    who: Producer
+    sections: [3.3]
+  - id: P-SEQ-2
+    level: MUST
+    requirement: CloudEvents sequence MUST be monotonically increasing within a session; gaps are permitted
+    who: Producer
+    sections: [3.3]
+  - id: P-SEQ-3
+    level: MUST NOT
+    requirement: CloudEvents sequence MUST NOT be derived from source database positions; it is producer-assigned
+    who: Producer
+    sections: [3.3]
+  - id: P-SEQ-4
+    level: MUST
+    requirement: sequence_continuity MUST be present in every STREAM_METADATA event
+    who: Producer
+    sections: [8.4.1, 10.4]
+  - id: P-SEQ-5
+    level: MUST
+    requirement: "When LSN or sequence continuity breaks mid-session, producer MUST emit HEARTBEAT with lsn_reset or sequence_reset"
+    who: Producer
+    sections: [8.4.2]
+  - id: P-SEQ-6
+    level: MUST
+    requirement: "pos.lsn MUST be monotonically increasing within a session unless lsn_reset: true or sequence_continuity: \"reset\" has been signaled"
+    who: Producer
+    sections: [8.1, 8.4]
+  - id: C-SEQ-1
+    level: MUST NOT
+    requirement: Consumer MUST NOT interpret CloudEvents sequence gaps as evidence of dropped events
+    who: Consumer
+    sections: [3.3]
+  - id: C-SEQ-2
+    level: MUST NOT
+    requirement: "Consumer MUST NOT compare pos.lsn values across sessions when sequence_continuity is \"reset\" or \"best_effort\""
+    who: Consumer
+    sections: [8.4.1]
+  - id: C-SEQ-3
+    level: MUST
+    requirement: Consumer MUST treat CloudEvents sequence counter as restarted after reconnect
+    who: Consumer
+    sections: [3.3, 8.4]
+  - id: C-SEQ-4
+    level: MUST
+    requirement: "Consumer MUST use cdctxorder for intra-transaction ordering, CloudEvents sequence for cross-table total ordering, and (pos.lsn, pos.lsn_offset) for replay positioning"
+    who: Consumer
+    sections: [3.3, 8.1, 8.2]
+  - id: P-TRUNC-1
+    level: MUST
+    requirement: "When emitting a TRUNCATE event, before and after MUST be null; _null_columns and _lob_overflow MUST be present and empty; primary_key MUST be populated"
+    who: Producer
+    sections: [10.2.4]
+  - id: P-TRUNC-2
+    level: MUST
+    requirement: "For multi-table TRUNCATE (single SQL statement naming multiple tables), producer MUST emit one TRUNCATE event per table; all events MUST share the same cdcxid; cdctxorder MUST be sequential (0, 1, 2, ...)"
+    who: Producer
+    sections: [6.1, 10.2.3]
+    see_also: [P-ORD-7]
+  - id: P-TRUNC-3
+    level: MUST
+    requirement: "For non-transactional TRUNCATE (Oracle, MySQL), producer MUST assign a synthetic cdcxid that is unique, stable across replay, and documented"
+    who: Producer
+    sections: [10.2.2, 8.3]
+  - id: P-TRUNC-4
+    level: MUST NOT
+    requirement: "If a producer emits TRUNCATE events and the source engine exposes truncate execution options, the producer SHOULD populate truncate_details; producers MUST NOT fabricate flag values that cannot be determined from the capture layer"
+    who: Producer
+    sections: [10.2.5, 2.8]
+  - id: C-TRUNC-1
+    level: MUST
+    requirement: "Consumers MUST treat any TRUNCATE event as semantically equivalent to deletion of all rows in the named table, regardless of truncate_details presence"
+    who: Consumer
+    sections: [10.2.1, Appendix A.6]
+  - id: C-TRUNC-2
+    level: MUST
+    requirement: "Consumers performing correctness-sensitive (same-engine) replication SHOULD inspect truncate_details.cascade and truncate_details.sequence_reset when present and act on non-\"not_applicable\" values"
+    who: Consumer
+    sections: [Appendix A.6]
+  - id: C-TRUNC-3
+    level: MUST NOT
+    requirement: Consumers performing target-agnostic apply MAY ignore truncate_details; consumers MUST NOT reject a TRUNCATE event solely because truncate_details is present
+    who: Consumer
+    sections: [Appendix A.6]
+  - id: C-TRUNC-4
+    level: MUST
+    requirement: "Duplicate TRUNCATE events (same (source, id)) MUST be deduplicated and MUST NOT be re-applied"
+    who: Consumer
+    sections: [Appendix A.6]
+
+# Section 19.1 Compliance Matrix rows.
+# req_ids link each row to the requirements register.
+matrix:
+  - capability: Schema delivery before first DML
+    producer: MUST
+    consumer: MUST
+    sections: [4.1]
+    req_ids: [P-ORD-4, C-ORD-3]
+  - capability: Schema re-emission after DDL
+    producer: MUST
+    sections: [4.1]
+    req_ids: [P-ORD-5]
+  - capability: Schema re-emission on reconnect
+    producer: MUST
+    sections: [6.4]
+    req_ids: [P-CONN-1]
+  - capability: Closed-world schema enforcement
+    producer: MUST
+    consumer: MUST
+    sections: [4.2]
+    req_ids: [C-VAL-2]
+  - capability: source_type verbatim DDL
+    producer: MUST
+    sections: [4.3]
+    req_ids: [P-TYPE-1]
+  - capability: logical_type from OpenCDC vocabulary
+    producer: MUST
+    sections: [4.3]
+    req_ids: [P-TYPE-2]
+  - capability: logical_type authoritative for decoding
+    consumer: MUST
+    sections: [4.3]
+    req_ids: [C-TYPE-1]
+  - capability: Values-only DML payloads (no per-row types)
+    producer: MUST
+    sections: [5]
+    req_ids: [P-DML-1]
+  - capability: _null_columns and _lob_overflow present in every DML
+    producer: MUST
+    sections: [5.2]
+    req_ids: [P-LOB-2]
+  - capability: Absent column = unchanged (not null)
+    consumer: MUST
+    sections: [5.4]
+    req_ids: [C-DML-1]
+  - capability: Transaction non-interleaving
+    producer: MUST
+    sections: [8.3]
+    req_ids: [T-NOINTERLEAVE]
+  - capability: cdctxorder monotonic within transaction
+    producer: MUST
+    sections: [6.1]
+    req_ids: [P-ORD-3]
+  - capability: Apply events in cdctxorder sequence
+    consumer: MUST
+    sections: [Appendix A.1]
+    req_ids: [C-ORD-1]
+  - capability: Stable UUID id (unchanged during replay)
+    producer: MUST
+    sections: [11.2]
+    req_ids: [P-IDEM-1]
+  - capability: "Deduplicate on (source, id)"
+    consumer: MUST
+    sections: [Appendix A.3]
+    req_ids: [C-IDEM-1]
+  - capability: Persist and restore cdcpos
+    consumer: MUST
+    sections: [8.2]
+    req_ids: [R-POS-1, R-POS-3]
+  - capability: Replay begins at/before schema event
+    producer: MUST
+    sections: [8.2]
+    req_ids: [R-POS-2]
+  - capability: HEARTBEAT during idle periods
+    producer: MUST
+    sections: [10.1]
+    req_ids: [T-HEARTBEAT]
+  - capability: Monitor HEARTBEAT for liveness
+    consumer: MUST
+    sections: [10.1]
+    req_ids: [C-HB-1]
+  - capability: TLS 1.2+ on all connections
+    both: MUST
+    sections: [14.1]
+    req_ids: [S-TLS-1]
+  - capability: Mutual authentication
+    both: MUST
+    sections: [14.2]
+    req_ids: [S-AUTH-1]
+  - capability: Loop suppression (bidirectional sync)
+    producer: MUST
+    sections: [3.4]
+    req_ids: [P-LOOP-1]
+  - capability: "TRUNCATE: before=null, after=null, primary_key populated"
+    producer: MUST
+    sections: [10.2.4]
+    req_ids: [P-TRUNC-1]
+  - capability: "TRUNCATE: _null_columns and _lob_overflow present and empty"
+    producer: MUST
+    sections: [10.2.4]
+    req_ids: [P-TRUNC-1]
+  - capability: "TRUNCATE: minimum semantics (delete all rows) applied regardless of truncate_details"
+    consumer: MUST
+    sections: [10.2.1, Appendix A.6]
+    req_ids: [C-TRUNC-1]
+  - capability: "TRUNCATE: truncate_details populated when engine exposes options"
+    producer: SHOULD
+    sections: [10.2.5, 2.8]
+    req_ids: [P-TRUNC-4]
+  - capability: "TRUNCATE: correctness-sensitive consumers inspect truncate_details"
+    consumer: SHOULD
+    sections: [Appendix A.6]
+    req_ids: [C-TRUNC-2]
+  - capability: "Multi-table TRUNCATE: one event per table, shared cdcxid, sequential cdctxorder"
+    producer: MUST
+    sections: [6.1, 10.2.3]
+    req_ids: [P-ORD-7, P-TRUNC-2]
+  - capability: "Non-transactional TRUNCATE (Oracle, MySQL): synthetic cdcxid required"
+    producer: MUST
+    sections: [10.2.2, 8.3]
+    req_ids: [P-TRUNC-3]
+  - capability: Payload encoding preserves field semantics
+    producer: MUST
+    consumer: MUST
+    sections: [2.7]
+    req_ids: [P-TYPE-3]

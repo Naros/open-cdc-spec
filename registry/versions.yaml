@@ -1,0 +1,40 @@
+# OpenCDC family version manifest -- single source of truth for what goes together.
+# Bump policy:
+#   wire_protocol      -- changes ONLY when the on-the-wire contract changes (field
+#                         semantics, ordering guarantees, type rules). Carried in
+#                         every event as cdcspecversion / opencdc_version.
+#   document revisions -- editorial/structural changes bump the doc revision only;
+#                         patch (x.y.Z) for editorial, minor (x.Y) for structure.
+wire_protocol: "0.2"
+documents:
+  specification:
+    version: "0.6.8"
+    date: 2026-06
+    tracks_wire: "0.2"
+  type_system:
+    version: "0.2"
+    date: 2026-05
+    normative_for: specification
+  architecture_decision_record:
+    version: "0.1"
+    date: 2026-06
+    role: informative
+  user_stories:
+    version: "Fifth Draft"
+    date: 2026-06-04
+    role: informative
+  glossary:
+    version: "1.0"
+    date: 2026-06
+    role: informative
+  payload_examples:
+    tracks_wire: "0.2"
+    conformant_to_spec: "0.6.x"
+    role: informative
+artifacts:
+  schemas:
+    tracks_wire: "0.2"
+    role: informative tooling (normative status pending working-group decision)
+  requirements_register:
+    tracks_spec: "0.6.x"
+    role: working-group data (source for generated Sections 17 and 19.1)
