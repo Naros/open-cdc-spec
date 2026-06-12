@@ -2,7 +2,7 @@
 
 **An open, vendor-neutral standard for the structure and semantics of database change events.** Any conformant producer — CDC tool or database — can interoperate with any conformant consumer — CDC tool, pipeline, lakehouse, or AI application — without custom translation.
 
-Built on [CloudEvents v1.1](https://cloudevents.io/), targeting PostgreSQL, Oracle, MySQL/MariaDB, SQL Server, and IBM Db2 source engines.
+Built on [CloudEvents v1.1](https://cloudevents.io/) for envelopes, and targeting support from all major CDC tools, Databases, AI/Agentic and Lakehouse technologies.
 
 ## Document Family
 
