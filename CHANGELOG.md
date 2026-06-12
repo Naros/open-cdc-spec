@@ -10,6 +10,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Version
 
 ---
 
+## [0.6.9] — June 2026
+
+**Consumer scope correction.** No change to the wire contract, field semantics, or normative rules.
+
+- Removed `C-HB-1` from the normative spec body. Monitoring HEARTBEAT for liveness is consumer operational guidance, not a producer-observable conformance obligation; mandating it as a body MUST violated the producer-focused scope established in ADR-0025.
+- `C-HB-1` demoted to SHOULD-level and relocated to Appendix A.8 (HEARTBEAT lag monitoring), consistent with all other consumer-side `C-*` guidance.
+- §19.1 matrix row updated: Consumer MUST → Consumer SHOULD, section 10.1 → Appendix A.8.
+- §17 no longer lists `C-HB-1` (SHOULD-level entries are register-only).
+
+---
+
 ## [0.6.8] — June 2026
 
 **Requirements register and compliance matrix completion.** No change to the wire contract, field semantics, or normative rules.
