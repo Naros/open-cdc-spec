@@ -8,8 +8,7 @@
       "const": "1.1"
     },
     "id": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      "type": "string"
     },
     "source": {
       "type": "string",
@@ -59,12 +58,10 @@
     "specversion",
     "id",
     "source",
-    "subject",
     "type",
     "time",
     "datacontenttype",
     "cdcspecversion",
-    "cdcpos",
     "data"
   ],
   "allOf": [
@@ -80,9 +77,54 @@
         "required": [
           "dataschema",
           "cdcxid",
-          "cdctxorder"
+          "cdctxorder",
+          "subject",
+          "cdcpos"
+        ],
+        "properties": {
+          "id": {
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "pattern": "\\.cdc\\.meta\\.OBJECT_METADATA"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "subject"
         ]
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "pattern": "\\.cdc\\.meta\\.HEARTBEAT"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "cdcpos"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "pattern": "\\.cdc\\.meta\\.STREAM_METADATA"
+          }
+        }
+      },
+      "then": {}
     }
   ]
 }
