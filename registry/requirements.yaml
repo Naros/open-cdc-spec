@@ -4,7 +4,7 @@
 # Levels: MUST / MUST NOT entries render into Section 17; SHOULD entries are register-only.
 
 meta:
-  spec_version: 0.6.8
+  spec_version: 0.6.9
   updated: 2026-06-12
   intro: >-
     The following table consolidates the MUST requirements across the specification for implementer quick-reference. Producer obligations (P-*, producer-side T-*, S-*, and R-*) are normative for this specification. Consumer obligations (C-* and consumer-side R-*) are retained in this table for a complete cross-reference but are non-normative here; they are defined as service-level guidance in Appendix A. SHOULD requirements are not listed -- see the relevant section for the complete normative text.
@@ -121,10 +121,10 @@ requirements:
     who: Producer
     sections: [8.3]
   - id: C-HB-1
-    level: MUST
-    requirement: Consumer MUST monitor HEARTBEAT receipt to distinguish idle stream from broken stream
+    level: SHOULD
+    requirement: Consumer SHOULD monitor HEARTBEAT receipt to distinguish idle stream from broken stream (see Appendix A.8 HEARTBEAT lag monitoring)
     who: Consumer
-    sections: [10.1]
+    sections: [Appendix A.8]
   - id: P-IDEM-1
     level: MUST
     requirement: Stable UUID id assigned at creation; same id during replay
@@ -388,7 +388,6 @@ requirements:
     sections: [Appendix A.6]
 
 # Section 19.1 Compliance Matrix rows.
-# req_ids link each row to the requirements register.
 matrix:
   - capability: Schema delivery before first DML
     producer: MUST
@@ -465,8 +464,8 @@ matrix:
     sections: [10.1]
     req_ids: [T-HEARTBEAT]
   - capability: Monitor HEARTBEAT for liveness
-    consumer: MUST
-    sections: [10.1]
+    consumer: SHOULD
+    sections: [Appendix A.8]
     req_ids: [C-HB-1]
   - capability: TLS 1.2+ on all connections
     both: MUST
