@@ -1,10 +1,10 @@
-OpenCDC Specification -- Draft v0.6.8
+OpenCDC Specification -- Draft v0.6.9
 
 # OpenCDC
 
 # Open Change Data Capture Specification
 
-Draft v0.6.8 -- June 2026
+Draft v0.6.9 -- June 2026
 
 Status: Draft for Discussion
 
@@ -103,6 +103,10 @@ OpenCDC Working Group
 This document specifies OpenCDC, a vendor-neutral JSON format for change data capture event streams. OpenCDC uses CloudEvents v1.1 as its envelope layer, combined with a schema-first payload design that provides full type fidelity across heterogeneous database engines. The standard mandates self-describing, schema-inline streams that are independently consumable without external infrastructure dependencies. It defines canonical representations for DML operations, DDL events, transaction identity, schema evolution, and stream lifecycle events. Type system semantics are defined in the companion OpenCDC Type System Proposal (v0.2), which is a normative reference to this specification. This document is written for implementers -- engineers at CDC tool vendors, database vendors, and pipeline platform teams who will produce or consume conformant OpenCDC streams. All behavioral requirements use RFC 2119 terminology (MUST, MUST NOT, SHOULD, SHOULD NOT, MAY).
 
 # Change Log
+
+- **v0.6.9**
+  - Date: June 2026
+  - Summary of Changes: Consumer scope correction; no change to the wire contract, field semantics, or normative rules. Removed C-HB-1 from the normative spec body: monitoring HEARTBEAT for liveness is consumer operational guidance, not a producer-observable conformance obligation, and mandating it violates the producer-focused scope established in ADR-0025. The requirement is demoted to SHOULD-level and relocated to Appendix A.8 (HEARTBEAT lag monitoring), consistent with all other consumer-side C-* guidance. The §19.1 matrix row is updated to Consumer SHOULD. §17 no longer lists C-HB-1 (SHOULD-level entries are register-only).
 
 - **v0.6.8**
   - Date: June 2026
@@ -1248,7 +1252,7 @@ Following this DDL event, the producer MUST emit a new OBJECT_METADATA event (sc
 
 ## 10.1 HEARTBEAT
 
-HEARTBEAT events MUST be emitted periodically during idle periods (no DML changes occurring). They solve the fundamental monitoring problem of distinguishing a silent stream (no changes) from a broken stream (capture has failed). Consumers MUST monitor HEARTBEAT receipt to detect a broken stream (C-HB-1). Producers MUST emit a HEARTBEAT at least every N seconds during idle periods, where N is a configurable parameter with a default of 30 seconds.
+HEARTBEAT events MUST be emitted periodically during idle periods (no DML changes occurring). They solve the fundamental monitoring problem of distinguishing a silent stream (no changes) from a broken stream (capture has failed). Producers MUST emit a HEARTBEAT at least every N seconds during idle periods, where N is a configurable parameter with a default of 30 seconds.
 
 ```
 {
@@ -1698,11 +1702,6 @@ The following table consolidates the MUST requirements across the specification 
   - Who: Producer
   - Section: 8.3
 
-- **C-HB-1**
-  - Requirement: Consumer MUST monitor HEARTBEAT receipt to distinguish idle stream from broken stream
-  - Who: Consumer
-  - Section: 10.1
-
 - **P-IDEM-1**
   - Requirement: Stable UUID id assigned at creation; same id during replay
   - Who: Producer
@@ -1985,7 +1984,7 @@ The "Consumer MUST" / "Consumer SHOULD" entries below describe what a consumer m
 | Persist and restore cdcpos |  | MUST |  | 8.2 | R-POS-1, R-POS-3 |
 | Replay begins at/before schema event | MUST |  |  | 8.2 | R-POS-2 |
 | HEARTBEAT during idle periods | MUST |  |  | 10.1 | T-HEARTBEAT |
-| Monitor HEARTBEAT for liveness |  | MUST |  | 10.1 | C-HB-1 |
+| Monitor HEARTBEAT for liveness |  | SHOULD |  | Appendix A.8 | C-HB-1 |
 | TLS 1.2+ on all connections |  |  | MUST | 14.1 | S-TLS-1 |
 | Mutual authentication |  |  | MUST | 14.2 | S-AUTH-1 |
 | Loop suppression (bidirectional sync) | MUST |  |  | 3.4 | P-LOOP-1 |
@@ -2072,7 +2071,7 @@ The following scenarios are the minimum test suite for conformance validation. E
   - Pass Criterion: Producer emits an Oracle TRUNCATE event with a synthetic cdcxid (not a real Oracle transaction ID). The synthetic cdcxid is stable: replay of the same event carries the same synthetic cdcxid. Consumer deduplicates on (source, id) correctly, not on cdcxid alone. truncate_details shows cascade: "not_applicable" and sequence_reset: "not_applicable".
   - Use Case: Data fidelity; Non-transactional TRUNCATE identity
 
-OpenCDC Specification -- Draft v0.6.8 -- June 2026 -- OpenCDC Working Group
+OpenCDC Specification -- Draft v0.6.9 -- June 2026 -- OpenCDC Working Group
 
 # Appendix A: Consumer Conformance, Obligations & Service-Level Guidance
 
