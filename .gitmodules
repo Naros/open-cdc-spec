@@ -1,0 +1,3 @@
+[submodule "open-cdc-rfcs"]
+	path = open-cdc-rfcs
+	url = https://github.com/open-cdc-hq/open-cdc-rfcs.git
