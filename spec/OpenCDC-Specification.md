@@ -104,6 +104,7 @@ Status: Draft for Discussion
   - [B.1 Dimension Mapping Table](#b1-dimension-mapping-table)
   - [B.2 Session Awareness and Schema Delivery](#b2-session-awareness-and-schema-delivery)
   - [B.3 Transport-Specific Implementation Notes](#b3-transport-specific-implementation-notes)
+  - [B.4 Kafka Consumption Guidance](#b4-kafka-consumption-guidance-informative)
 
 <!-- toc:end -->
 
@@ -118,13 +119,13 @@ OpenCDC producers operate across a range of physical transport topologies, from 
 - **Single Channel Stream**: A single, totally-ordered channel between one producer and one or more consumers. All events for all captured tables are delivered through one ordered stream.
 - **Multi-Channel / Distributed Topologies**: Multiple independent channels (e.g., one channel per table, multiple partitions per channel). Events for different tables or partitions arrive independently.
 
-Orthogonal to channel count, a producer may or may not have **session awareness** -- the ability to detect consumer connection and disconnection events. Session awareness determines whether certain behaviors (schema re-emission on connect, STREAM_METADATA as first event per session) can be provided via in-stream delivery. Producers declare their delivered-stream guarantees -- ordering scope, transaction interleaving -- and session awareness in STREAM_METADATA (see Sections 2.2a and 10.4) so consumers can adapt their behavior accordingly. The Single Channel Stream subsections throughout this document apply to streams declaring `ordering_scope: "stream"` with `transaction_interleaving: "none"` (the *single* profile); the Multi-Channel subsections apply to streams declaring `ordering_scope: "channel"` (the *multi* profile). See Appendix B for examples of how common transport technologies map to these dimensions.
+Orthogonal to the ordering axes, a producer may or may not have **session awareness** -- the ability to detect consumer connection and disconnection events. Session awareness determines whether certain behaviors (schema re-emission on connect, STREAM_METADATA as first event per session) can be provided via in-stream delivery. Producers declare their delivered-stream guarantees -- ordering scope, transaction interleaving -- and session awareness in STREAM_METADATA (see Sections 2.2a and 10.4) so consumers can adapt their behavior accordingly. The Single Channel Stream subsections throughout this document apply to streams declaring `ordering_scope: "stream"` with `transaction_interleaving: "none"` (the *single* profile); the Multi-Channel subsections apply to streams declaring `ordering_scope: "channel"` (the *multi* profile). See Appendix B for examples of how common transport technologies map to these dimensions.
 
 # Change Log
 
 - **v0.7.0-rebased**
   - Date: July 2026
-  - Summary of Changes: Clean regeneration from the v0.6.9 baseline per the working-group Rebase Decision Manifest; supersedes the prior v0.7.0 PR draft. Wire protocol 0.2 -> 0.3. (1) **Capability axes unbundled**: `channel_model` is removed from the wire vocabulary and replaced by two mandatory guarantee axes -- `ordering_scope` ("stream" | "channel", P-SCOPE-1/2) and `transaction_interleaving` ("none" | "possible", P-ILV-1/2); *single*/*multi* survive as defined prose profiles only; TRX_COMMIT obligations (P-TRX-1) now bind to `transaction_interleaving: "possible"`, admitting the two previously undeclarable off-diagonal combinations (totally-ordered-but-interleaved; sharded-but-transaction-contiguous). C-CHAN-1 renamed C-ILV-1. (2) New normative **Terms and Definitions** section (defines producer-as-assembled-entity, channel, captured vs. active table, and other load-bearing terms). (3) Section 2.2a rebuilt as **Capability Axes, Authority, and Legal Combinations**, including a normative Authority Table (source-/deployment-/architecture-determined per axis), the producer-sole-emitter invariant, the carry/validate/default-conservatively rule for deployment-determined axes, and a Defaults-and-Silence rule (absent optional axes = defined safe defaults; `session_aware` absent = false -- ratifying the removal of former P-SESSION-1). (4) `schema_delivery` relaxed: only `schema_on_change: true` is required; other modes default false when absent. (5) New **`bidirectional`** axis (default false) scoping P-LOOP-1 via the (BD) qualifier; apply-side tagging precondition documented; portable cross-vendor tagging deferred to a future optional Bidirectional Interop Profile. New P-INT-1: intermediaries that re-topologize a stream assume the producer role and re-declare. (6) TRX_COMMIT (Section 10.5) retained with triggers re-keyed to the interleaving axis; `transaction_marker_delivery` re-keyed likewise and its reserved `external_uri` value **removed** (deferred to future transport-binding work); `distribution` remains SHOULD. (7) New replay-integrity rules: R-POS-7 (schema in effect at any replayable position remains retrievable for the supported replay window) and P-RET-1 (TRX_COMMIT marker availability >= data-channel retention). (8) Section 14 restructure ratified as a documented decision: former S-TLS-1/S-AUTH-1 transport-security MUSTs removed; transport security is deployment/binding scope; normative producer security rules (S-AUTH-2, S-AUTHZ-1/2) retained. (9) P-ORD-6 demotion ratified: partition alignment is a SHOULD-level convenience; `partitionkey` is an optional advisory routing hint; ordering anchors on T-NOINTERLEAVE and the CloudEvents `sequence` field; C-KEY-1 directs keying on `primary_key`. (10) Appendix A: obligation ceiling stated (consumer-directed guidance capped at SHOULD; MUST appears only as quoted producer guarantees or Section 19.1 cross-references); new A.6.1 (sink throughput considerations for partial UPDATE images); control-channel schema-race guidance (A.2); bounded-wait guidance for missing markers (A.10); bidirectional origin-guard note (A.9); A.12.1 matrix re-keyed to the four axis cells. (11) Section 19.2: T-08 conditioned on the bidirectional declaration; four new axis-cell scenarios T-15..T-18 covering all legal ordering_scope x transaction_interleaving combinations including both off-diagonal cells. Section 19.1: bilateral-row rationale added (Consumer MUSTs serve conformance-suite meaning, not real-world consumer direction); new rows for P-SCOPE-1, P-ILV-1, R-POS-7, P-RET-1, P-INT-1, bidirectional declaration; implements-vs-conformant claim distinction added to Section 19 preamble. Sections 17 and 19.1 are hand-drafted in register-compatible form this phase; register regeneration follows in the artifact phase.
+  - Summary of Changes: Clean regeneration from the v0.6.9 baseline per the working-group Rebase Decision Manifest; supersedes the prior v0.7.0 PR draft. Wire protocol 0.2 -> 0.3. (1) **Capability axes unbundled**: `channel_model` is removed from the wire vocabulary and replaced by two mandatory guarantee axes -- `ordering_scope` ("stream" | "channel", P-SCOPE-1/2) and `transaction_interleaving` ("none" | "possible", P-ILV-1/2); *single*/*multi* survive as defined prose profiles only; TRX_COMMIT obligations (P-TRX-1) now bind to `transaction_interleaving: "possible"`, admitting the two previously undeclarable off-diagonal combinations (totally-ordered-but-interleaved; sharded-but-transaction-contiguous). C-CHAN-1 renamed C-ILV-1. (2) New normative **Terms and Definitions** section (defines producer-as-assembled-entity, channel, captured vs. active table, and other load-bearing terms). (3) Section 2.2a rebuilt as **Capability Axes, Authority, and Legal Combinations**, including a normative Authority Table (source-/deployment-/architecture-determined per axis), the producer-sole-emitter invariant, the carry/validate/default-conservatively rule for deployment-determined axes, and a Defaults-and-Silence rule (absent optional axes = defined safe defaults; `session_aware` absent = false -- ratifying the removal of former P-SESSION-1). (4) `schema_delivery` relaxed: only `schema_on_change: true` is required; other modes default false when absent. (5) New **`bidirectional`** axis (default false) scoping P-LOOP-1 via the (BD) qualifier; apply-side tagging precondition documented; portable cross-vendor tagging deferred to a future optional Bidirectional Interop Profile. New P-INT-1: intermediaries that re-topologize a stream assume the producer role and re-declare. (6) TRX_COMMIT (Section 10.5) retained with triggers re-keyed to the interleaving axis; `transaction_marker_delivery` re-keyed likewise and its reserved `external_uri` value **removed** (deferred to future transport-binding work); `distribution` remains SHOULD. (7) New replay-integrity rules: R-POS-7 (schema in effect at any replayable position remains retrievable for the supported replay window) and P-RET-1 (TRX_COMMIT marker availability >= data-channel retention). (8) Section 14 restructure ratified as a documented decision: former S-TLS-1/S-AUTH-1 transport-security MUSTs removed; transport security is deployment/binding scope; normative producer security rules (S-AUTH-2, S-AUTHZ-1/2) retained. (9) P-ORD-6 demotion ratified: partition alignment is a SHOULD-level convenience; `partitionkey` is an optional advisory routing hint; ordering anchors on T-NOINTERLEAVE and the CloudEvents `sequence` field; C-KEY-1 directs keying on `primary_key`. (10) Appendix A: obligation ceiling stated (consumer-directed guidance capped at SHOULD; MUST appears only as quoted producer guarantees or Section 19.1 cross-references); new A.6.1 (sink throughput considerations for partial UPDATE images); control-channel schema-race guidance (A.2); bounded-wait guidance for missing markers (A.10); bidirectional origin-guard note (A.9); A.12.1 matrix re-keyed to the four axis cells. (11) Section 19.2: T-08 conditioned on the bidirectional declaration; four new axis-cell scenarios T-15..T-18 covering all legal ordering_scope x transaction_interleaving combinations including both off-diagonal cells. Section 19.1: bilateral-row rationale added (Consumer MUSTs serve conformance-suite meaning, not real-world consumer direction); new rows for P-SCOPE-1, P-ILV-1, R-POS-7, P-RET-1, P-INT-1, bidirectional declaration; implements-vs-conformant claim distinction added to Section 19 preamble. (12) **Emission/Delivery Layering amendment**: the producer is redefined as the changelog producer (component that generates OpenCDC events); the assembled-entity/as-delivered doctrine is superseded. The ordering axes `ordering_scope` and `transaction_interleaving` now declare the *producer's emitted sequence* guarantees, not the delivered-stream guarantees; their Authority Table classification changes from deployment-determined to producer-determined (emission). A new normative Conservative Composition rule (C-COMP-1, Section 2.2a) governs what a consumer may assume about the delivered stream: the emission declaration composed with any delivery-layer attestation, defaulting to `"channel"`/`"possible"` absent an attestation, and never upgradable by observation alone. New P-TRX-7 (SHOULD): producers that do not themselves deliver to consumers should emit TRX_COMMIT markers regardless of their interleaving declaration, since markers are the only completion mechanism that survives an unattested delivery layer. P-INT-1 is reworked from an intermediary-re-declaration rule to a delivery-layer attestation-integrity rule (a delivery layer MUST NOT attest preservation of guarantees it altered). Section 10.4's multi-channel delivery-mechanism list (control channel / transport metadata / first record) is demoted from producer MUSTs to delivery-layer/binding scope, illustrated informatively in Appendix B. New informative Appendix B.4 (Kafka Consumption Guidance) provides SHOULD-level Kafka consumer practices as an explicit precursor to a future normative Kafka binding. Rationale: connector-style producers (e.g., Debezium, IIDR) cannot honestly declare delivered-stream guarantees because they do not control delivery; the prior assembled-producer definition left neither the connector nor the platform team able to claim conformance. Emission semantics make the payload contract standalone-testable and vendor-claimable, while full-stack vendors that are also their own delivery layer may attest both layers and retain stronger end-to-end claims. Consumer safety is preserved because composition defaults down, never up. (13) **Consistency-audit amendment**: completed the emission/delivery layering across all sites (§2.5, §6, §4.4, §4.5.2, §6.4, §10.1, §10.4 Single Channel subsection, §8.3) -- OBJECT_METADATA and HEARTBEAT delivery-mechanism obligations reworded from producer MUSTs-to-publish/maintain to producer obligations-to-have-emitted, with delivery-channel availability and retention assigned to the delivery layer (binding-defined); cured a dangling "listed below" reference in §10.4 left after Amendment 1's partial edit. C-COMP-1 admitted as the fourth bilateral Consumer MUST row in §19.1 (resolving a doctrinal contradiction with the three-row rationale text) rather than softened, per the standing caution against weakening Conservative Composition. Appendix B realigned to post-unbundling vocabulary and the SHOULD-ceiling doctrine: "channel count"/"Channel Count" replaced by "delivery channels"; a stray consumer MUST NOT in B.2 demoted to SHOULD NOT; B.1's topic-per-table TRX_COMMIT guidance corrected from "recommended" to mandatory-when-interleaving-possible (P-TRX-1) plus recommended-for-payload-only (P-TRX-7). Appendix A.5 and §8.3 transaction-completion guidance re-keyed from raw topology/declaration to composed delivered guarantees (C-COMP-1), closing the gap where a consumer could trust an emission declaration across an unattested delivery layer. Terms "Channel" definition split into emission channels and delivery channels. New capture_mode field defined in §10.4 (previously used in the worked example but undefined). Stale "channel count" phrase in Document Authority and Scope re-keyed to "the ordering axes". Sections 17 and 19.1 are hand-drafted in register-compatible form this phase; register regeneration follows in the artifact phase.
 
 - **v0.6.9-restructured**
   - Date: June 2026
@@ -239,11 +240,12 @@ If this Specification and the Type System Proposal appear to conflict on a type-
 
 The following terms are normative for this specification. Body text uses them in the senses defined here. The companion GLOSSARY.md is an informative superset; where they differ, this section prevails.
 
-- **Producer** -- The assembled entity responsible for the stream as delivered to consumers: the capture component together with the routing and channel provisioning that shape delivery. Where an intermediary alters channel structure or ordering guarantees, that intermediary assumes the producer role for the resulting stream (P-INT-1).
+- **Producer** -- The changelog producer: the component that generates OpenCDC events from source changes and emits them as an ordered event sequence. The producer's declarations describe its emitted sequence; they do not describe the behavior of any delivery layer between emission and consumption.
+- **Delivery layer** -- Any transport, broker, intermediary, or routing infrastructure between producer emission and consumer receipt (for example: a message broker and its partitioning, an object store, a relay). The delivery layer may preserve or alter the guarantees of the emitted sequence. Delivery-layer obligations are defined by transport binding documents; where no binding attestation applies, consumers compose conservatively (Section 2.2a).
 - **Consumer** -- Any system reading an OpenCDC stream. Consumer behavior is service-level guidance (Appendix A), except for the bilateral wire-interpretation rules retained in Section 19.1.
 - **Event** -- One CloudEvents v1.1 envelope carrying an OpenCDC payload: a DML change, DDL change, schema declaration, or lifecycle signal.
 - **Stream** -- The ordered set of events a producer emits for its captured tables, across one or more channels.
-- **Channel** -- The transport's unit of ordered delivery (for example: a message-broker partition, an object-storage key prefix, a socket connection). Ordering guarantees hold within a channel; whether they hold across channels is declared by `ordering_scope`.
+- **Channel** -- A unit of ordered event flow. Channels exist at both layers: the producer's *emission channels* (the ordered sequences it generates, declared by `ordering_scope`) and the delivery layer's *delivery channels* (the transport's units of ordered delivery -- a message-broker partition, an object-storage key prefix, a socket connection). Whether emission-channel guarantees survive into delivery channels is a composition question (Section 2.2a, C-COMP-1).
 - **Session** -- One consumer connection to a producer. Some guarantees (CloudEvents `sequence` monotonicity, session-scoped STREAM_METADATA delivery) are session-scoped, not stream-scoped.
 - **Captured table** -- A table configured for capture in this stream, regardless of whether any change events have yet been emitted for it.
 - **Active table** -- A captured table for which change events have flowed in this stream. Schema re-emission and control-channel maintenance obligations (Sections 4.4, 4.5.2) govern active tables.
@@ -377,30 +379,32 @@ In a single ordered stream, schema availability is achieved by co-locating OBJEC
 
 #### Multi-Channel / Distributed Topologies
 
-In multi-channel deployments, schema co-location means schema MUST be available before a DML event is decoded, but the schema MAY be delivered via a different mechanism than in-stream ordering: Schema on Each Event (embedded _schema in every DML event), a schema control channel that consumers subscribe to alongside data channels, or a schema registry supplement. The topology-neutral guarantee is preserved: the consumer never needs out-of-band schema knowledge, but the delivery mechanism adapts to the topology.
+In multi-channel deployments, schema co-location means schema MUST be available before a DML event is decoded, but the schema MAY be delivered via a different mechanism than in-stream ordering: Schema on Each Event (embedded _schema in every DML event), a schema control channel realized by the delivery layer, or a schema registry supplement. The topology-neutral guarantee is preserved: the consumer never needs out-of-band schema knowledge, but the delivery mechanism adapts to the topology.
 
 ## 2.2a Capability Axes, Authority, and Legal Combinations
 
-A self-describing stream declares its behavior through independent **capability axes** in STREAM_METADATA (Section 10.4). Each axis is a guarantee about the stream **as delivered to consumers** -- the combined effect of event generation, routing configuration, and channel structure -- not a description of any component's internal behavior or of the transport's visible layout. The entity responsible for the delivered stream is the producer for the purposes of these declarations (see Terms and Definitions).
+A self-describing stream declares its behavior through independent **capability axes** in STREAM_METADATA (Section 10.4). Each ordering axis is a guarantee about the **producer's emitted event sequence** -- what the changelog producer itself guarantees at the point of emission -- not about the stream as it may arrive after a delivery layer (see Terms and Definitions). What a consumer may assume about the *delivered* stream is governed by composition: the emission declaration combined with any delivery-layer attestation, per the Conservative Composition rule below.
+
+**Conservative Composition (normative).** The delivered guarantees a consumer may rely on are the emission declaration composed with the delivery layer's attestation. A delivery layer (or transport binding claimed by the deployment) MAY attest that it preserves the emitted ordering and contiguity guarantees. Absent such an attestation, a consumer MUST treat the delivered guarantees as ordering_scope: "channel" and transaction_interleaving: "possible", regardless of the emission declaration (C-COMP-1). Composition defaults downward only: no delivery layer can strengthen an emission guarantee, and no consumer may infer preservation from observed transport topology alone. Transport binding documents (chartered; see Section 12) define per-transport attestation conditions and delivery-layer obligations.
 
 **The two ordering-guarantee axes.** Two axes are load-bearing for ordering and transaction completion; they are declared independently because they are independent facts:
 
-- **`ordering_scope`** (`"stream"` | `"channel"`) -- *Do all events arrive in one global order, or is order guaranteed only within each channel?* Under `"stream"`, the arrival order of any two events in the stream may be compared. Under `"channel"`, ordering across channels means nothing, and consumers build no logic on it. Declaration is mandatory (P-SCOPE-1). **When in doubt, declare `"channel"`** -- a stream is `"stream"`-scoped only where the deployment structurally enforces one total order across every event (P-SCOPE-2).
-- **`transaction_interleaving`** (`"none"` | `"possible"`) -- *Can events of different transactions arrive interspersed at a consumption point?* Under `"none"`, all events of one transaction appear before any event of the next, so transaction completion is inferable from ordering alone (next-cdcxid or HEARTBEAT; Section 8.3) and no completion markers are needed. Under `"possible"`, ordering says nothing about completion, and the producer MUST emit TRX_COMMIT markers (Section 10.5, P-TRX-1). Declaration is mandatory (P-ILV-1). **When in doubt, declare `"possible"`** (P-ILV-2).
+- **`ordering_scope`** (`"stream"` | `"channel"`) -- *Does the producer emit all events in one global order, or does it guarantee order only within each channel?* Under `"stream"`, the arrival order of any two events in the stream may be compared. Under `"channel"`, ordering across channels means nothing, and consumers build no logic on it. Declaration is mandatory (P-SCOPE-1). **When in doubt, declare `"channel"`** -- a stream is `"stream"`-scoped only where the deployment structurally enforces one total order across every event (P-SCOPE-2).
+- **`transaction_interleaving`** (`"none"` | `"possible"`) -- *Can events of different transactions be interspersed in the emitted sequence?* Under `"none"`, all events of one transaction appear before any event of the next, so transaction completion is inferable from ordering alone (next-cdcxid or HEARTBEAT; Section 8.3) and no completion markers are needed. Under `"possible"`, ordering says nothing about completion, and the producer MUST emit TRX_COMMIT markers (Section 10.5, P-TRX-1). A producer that does not itself deliver events to consumers SHOULD emit TRX_COMMIT markers even when declaring "none" (P-TRX-7), since delivered contiguity across an unattested delivery layer cannot be assumed (see Conservative Composition). Declaration is mandatory (P-ILV-1). **When in doubt, declare `"possible"`** (P-ILV-2).
 
 **Profiles (prose shorthand).** The names *single* and *multi* are retained in this document as defined profiles, not wire values: **single** means `ordering_scope: "stream"` with `transaction_interleaving: "none"`; **multi** means `ordering_scope: "channel"` with `transaction_interleaving: "possible"`. The topology-labeled subsections throughout this document (Single Channel Stream / Multi-Channel) refer to these profiles. The off-diagonal combinations are legal and declarable (see the matrix below); their obligations follow from the axes, not from the profile names.
 
-**Authority Table (normative).** Each axis has a determination authority -- whose knowledge and accountability stands behind the declared value. **Invariant: all axis values, whatever determines them, are emitted solely by the producer in STREAM_METADATA. Infrastructure components never author or modify declarations.** For *deployment-determined* axes, the value MAY be supplied to the producer as configuration by whoever controls the delivery layer; the producer MUST emit the configured value, MUST default to the conservative value when unconfigured, and SHOULD validate the configured value against the transport where observable (for example, refusing to start when configuration asserts `ordering_scope: "stream"` but the transport reports a multi-partition channel). Authority classification is per delivery path: a product that embeds its own transport is the deployer of that path, while the same product relaying into shared infrastructure is deployment-determined for that leg.
+**Authority Table (normative).** Each axis has a determination authority -- whose knowledge and accountability stands behind the declared value. **Invariant: all axis values, whatever determines them, are emitted solely by the producer in STREAM_METADATA. Infrastructure components never author or modify declarations.** With the axes scoped to emission semantics, the ordering axes are determined by the producer's own emission behavior and its capture configuration; they no longer describe downstream routing. Where a producer's emission behavior is itself configurable (for example, routing performed inside the producing process before emission), the configured value MUST be emitted, the conservative value MUST be used when unconfigured, and configured values SHOULD be validated where observable. Delivery-layer facts are out of scope for these declarations and are addressed by transport bindings and the Conservative Composition rule.
 
 | Axis | Values | Plain-English meaning / contract declared | Authority |
 |---|---|---|---|
-| `ordering_scope` | `"stream"` \| `"channel"` | One global arrival order across all events, or per-channel order only | Deployment-determined |
-| `transaction_interleaving` | `"none"` \| `"possible"` | Transactions arrive contiguously, or may intersperse (markers then required) | Deployment-determined |
+| `ordering_scope` | `"stream"` \| `"channel"` | One global arrival order across all events, or per-channel order only | Producer-determined (emission) |
+| `transaction_interleaving` | `"none"` \| `"possible"` | Transactions arrive contiguously, or may intersperse (markers then required) | Producer-determined (emission) |
 | `transaction_boundaries` | `"none"` \| `"commit_all"` \| `"commit_multi_event"` | Which transactions receive TRX_COMMIT markers (Section 10.5) | Deployment-conditional: required (non-`"none"`) iff `transaction_interleaving: "possible"`; mode choice is source-informed |
 | `sequence_continuity` | `"guaranteed"` \| `"best_effort"` \| `"reset"` | Whether positions remain comparable across producer sessions (Section 8.4.1) | Source-determined |
 | `transaction_visibility` | `"committed_only"` (sole defined value) | Only durably committed transactions appear; reserved for future modes (Section 10.4) | Source-determined |
 | `session_aware` | `true` \| `false` (absent = `false`) | Whether the producer detects consumer connect/disconnect (connection-scoped delivery). **Not an ordering or topology axis.** | Architecture-determined (fixed by the product's transport model per delivery path) |
-| `bidirectional` | `true` \| `false` (absent = `false`) | This deployment is one leg of a two-way pair and will not re-emit changes it applied from its counterpart (Section 3.4, P-LOOP-1) | Deployment-determined |
+| `bidirectional` | `true` \| `false` (absent = `false`) | This deployment is one leg of a two-way pair and will not re-emit changes it applied from its counterpart (Section 3.4, P-LOOP-1) | Deployment-determined (a statement of deployment intent, emitted by the producer) |
 | `schema_delivery.schema_on_change` | `true` (required) | Schema before a table's first data event and after every DDL (Section 4.4) | Source-determined |
 | `schema_delivery` (other modes) | booleans (absent = `false`) | Reconnect / each-event / by-reference delivery options (Section 4.4) | Deployment-determined (reconnect is architecture-determined for session-serving products) |
 
@@ -415,6 +419,8 @@ A self-describing stream declares its behavior through independent **capability 
 | channel | none | none (markers optional/redundant) | yes -- every transaction is delivered whole within one channel; per-channel completion via ordering. Declare only where the routing invariant is structurally enforced |
 | channel | possible | commit_all / commit_multi_event | yes -- the *multi* profile; cdcxid assembly plus markers MANDATORY (P-TRX-1); canonical decoupled deployment |
 | any | **possible** | **none** | **NO -- non-conformant** (interleaving without markers forces fragile timeouts) |
+
+The table above governs the *emission* declaration. A payload-only producer declaring "stream"/"none" without markers emits a sequence whose completion is only safely consumable under a delivery attestation; across an unattested delivery layer, Conservative Composition reduces the delivered guarantees to "channel"/"possible", and without markers no completion mechanism survives that reduction. This is why P-TRX-7 recommends markers for producers that do not deliver to consumers.
 
 `session_aware` composes freely with every row above; it governs metadata/schema delivery (Sections 4.5.2, 10.4), never ordering.
 
@@ -628,7 +634,7 @@ Bidirectional database-to-database sync (see the OpenCDC User Stories document) 
 **Loop Prevention Is a Producer Obligation -- Consumer Filtering Is Defensive Only**
 Loop suppression MUST be implemented by the producer, not the consumer. A consumer has no reliable way to determine whether a received event originated locally, so loop suppression cannot be a consumer responsibility. The producer, which has access to the source transaction log, is the only party that can determine whether a committed transaction was a local origination or an applied remote event. The mechanism: producers that apply incoming OpenCDC events MUST tag the resulting local transactions with the original cdcxid value. When the CDC capture layer reads those transactions from the log, it MUST recognize the cdcxid tag and suppress emission of those events. (Consumer-side defensive loop filtering is a non-primary safety layer only; see Appendix A.9.) Correct producer behavior is the only conformant solution. In a bidirectional pair, the apply-side tagging described above is a mechanical precondition of the capture side's P-LOOP-1 conformance: a deployment declaring `bidirectional: true` claims the apply+capture pair as one unit. This specification defines the tagging contract at the outcome level only; a portable cross-vendor tagging mechanism (for mixed-tool nodes) is deferred to a future optional Bidirectional Interop Profile.
 
-- P-INT-1 (Intermediary re-declaration): Any intermediary that alters a stream's channel structure or ordering guarantees assumes the producer role for the resulting stream and MUST re-declare its capability axes (Section 2.2a) -- and, where it merges channels of a marker-bearing stream, MUST preserve or re-emit the markers its output requires. A consumer that silently discards events based on source matching without a conformant producer-side implementation creates a system that appears to work but will corrupt data if producer-side filtering ever fails.
+- P-INT-1 (Delivery-layer attestation integrity): A delivery layer or intermediary MUST NOT attest preservation of emission guarantees it has altered. An intermediary that re-topologizes a marker-bearing stream MUST preserve the markers its output requires. An intermediary that itself generates new OpenCDC events (rather than relaying them) is a producer for those events and carries producer obligations. A consumer that silently discards events based on source matching without a conformant producer-side implementation creates a system that appears to work but will corrupt data if producer-side filtering ever fails.
 
 ## 3.5 Canonical Envelope Example
 
@@ -696,7 +702,7 @@ MANDATORY STREAM ORDERING -- SESSION-AWARE PRODUCER (per consumer session):
   VIOLATION: emitting [6] referencing the same id as [2] after a DDL change -> non-conformant producer
 ```
 
-When `session_aware` is false, the producer cannot detect consumer connections and therefore cannot emit session-scoped events ([1] in the diagram above). In this case, STREAM_METADATA MUST be published via the transport's metadata mechanism or a control channel (see Section 10.4), and OBJECT_METADATA availability MUST be ensured via Schema on Each Event (Section 4.5.3) or a durable schema record in the stream. The OBJECT_METADATA-before-DML ordering constraint ([2] before [3]) still applies to events within the durable stream.
+When `session_aware` is false, the producer cannot detect consumer connections and therefore cannot emit session-scoped events ([1] in the diagram above). In this case, STREAM_METADATA and OBJECT_METADATA are emitted as ordinary events in the producer's sequence; how they are surfaced to consumers (control channel, transport metadata, first record) is a delivery-layer concern (Section 10.4, Appendix B). The producer's payload obligation is that OBJECT_METADATA availability be ensured via an effective schema mode: Schema on Each Event (Section 4.5.3) or a durable schema record in the emitted stream. The OBJECT_METADATA-before-DML ordering constraint ([2] before [3]) still applies to events within the durable stream.
 
 #### Multi-Channel / Distributed Topologies
 
@@ -704,9 +710,9 @@ In multi-channel deployments, physical ordering of OBJECT_METADATA before DML ac
 
 - **Schema on Each Event** (Section 4.5.3): The full OBJECT_METADATA payload is embedded inline in every DML event under the _schema key. This is the RECOMMENDED approach for multi-channel deployments because it eliminates ordering dependencies between channels and supports consumers that join at arbitrary offsets.
 
-- **Schema control channel**: OBJECT_METADATA events are published to a dedicated control channel (or equivalent) that consumers subscribe to alongside data channels. The producer MUST emit OBJECT_METADATA to the control channel before emitting DML events that reference that schema version to any data channel.
+- **Schema control channel**: OBJECT_METADATA events are surfaced on a dedicated control channel realized by the delivery layer. The producer's payload obligation is emission ordering: it MUST emit OBJECT_METADATA before any DML event that references that schema version, in its emitted sequence (P-ORD-4/P-ORD-5); the delivery layer is responsible for making the control channel's contents available before consumers decode referencing data events (binding-defined; see Appendix B).
 
-- **Schema on Reconnect via control channel**: The producer publishes current OBJECT_METADATA events to a durable control channel. Consumers read the control channel on startup to populate their schema cache before reading data channels.
+- **Schema on Reconnect via control channel**: Current OBJECT_METADATA events are retained on a durable control channel realized by the delivery layer; the producer's obligation is to have emitted current OBJECT_METADATA for every active table. Consumers read the control channel on startup to populate their schema cache before reading data channels.
 
 The four named schema delivery modes and their conformance levels are defined in Section 4.4. The behavioral obligations for each mode are defined in Section 4.5.
 
@@ -909,7 +915,7 @@ When `session_aware` is false, Schema on Reconnect cannot be implemented via in-
 
 #### Multi-Channel / Distributed Topologies
 
-In multi-channel deployments, the producer typically has no direct session relationship with consumers. Schema on Reconnect is achieved by publishing current OBJECT_METADATA events to a compacted control channel (or equivalent persistent channel) that consumers read on startup. When schema_on_reconnect is false, Schema on Each Event MUST be active so schema is always resolvable without session-scoped re-emission. (Consumer behavior in this mode is described in Appendix A.2.)
+In multi-channel deployments, the producer typically has no direct session relationship with consumers. Schema on Reconnect is achieved by the delivery layer retaining current OBJECT_METADATA events on a durable control channel (or equivalent) that consumers read on startup; the producer's obligation is to have emitted the current OBJECT_METADATA for every *active table* (see Terms and Definitions) such that the delivery layer can retain it. When schema_on_reconnect is false, Schema on Each Event MUST be active so schema is always resolvable without session-scoped re-emission. (Consumer behavior in this mode is described in Appendix A.2.)
 
 ### 4.5.3 Schema on Each Event (OPTIONAL, default OFF)
 
@@ -1240,7 +1246,7 @@ A session-aware producer MAY support both approaches simultaneously.
 
 **Sessionless Producers** (`session_aware: false`)
 
-When `session_aware` is false, the producer cannot detect consumer connections and Approach 1 (session-scoped re-emission) is not available. Schema availability on reconnection MUST be ensured by activating Schema on Each Event (Section 4.5.3) or by maintaining a durable schema record in the stream or control channel that consumers read on startup. The producer SHOULD set schema_on_reconnect to false in STREAM_METADATA to signal that consumers must not expect session-scoped schema delivery.
+When `session_aware` is false, the producer cannot detect consumer connections and Approach 1 (session-scoped re-emission) is not available. Schema availability on reconnection MUST be ensured at the payload level by activating Schema on Each Event (Section 4.5.3) or by having emitted a durable schema record in the stream; where that record is surfaced on a control channel, its retention and availability are delivery-layer obligations (Appendix B, R-POS-7). The producer SHOULD set schema_on_reconnect to false in STREAM_METADATA to signal that consumers must not expect session-scoped schema delivery.
 
 #### Multi-Channel / Distributed Topologies
 
@@ -1248,7 +1254,7 @@ In multi-channel deployments, the producer does not have a direct session relati
 
 - **Schema on Each Event** (Section 4.5.3): Every DML event embeds the full schema under the _schema key. A consumer joining at any offset on any channel can immediately decode events without prior schema knowledge. This is the RECOMMENDED approach for multi-channel deployments.
 
-- **Schema control channel**: OBJECT_METADATA events are published to a compacted control channel (or equivalent). Consumers read this channel on startup to populate their schema cache. The producer MUST ensure the control channel always contains the current OBJECT_METADATA for every *active table* (see Terms and Definitions).
+- **Schema control channel**: OBJECT_METADATA events are retained on a durable control channel (or equivalent) realized by the delivery layer; consumers read it on startup to populate their schema cache. The producer MUST have emitted current OBJECT_METADATA for every *active table* (see Terms and Definitions); retention and availability of the channel's contents are delivery-layer obligations (binding-defined; see Appendix B and R-POS-7).
 
 - **Schema by Reference** (Section 4.5.4): The dataschema field contains a resolvable URL to an external schema registry. This supplements but does not replace the above mechanisms -- a consumer that cannot reach the registry must still be able to decode events via one of the other methods.
 
@@ -1370,7 +1376,7 @@ The following requirements are common to all topologies:
 
 #### Single Channel Stream -- Transaction Completion
 
-T-COMPLETE: When `transaction_interleaving: "none"` is declared, a transaction is complete when (a) the first event of a new cdcxid is observed, OR (b) a HEARTBEAT is received after all events of the transaction have been delivered. When `transaction_interleaving: "possible"` is declared, completion is condition (c): the transaction's TRX_COMMIT has been received and the consumer holds all distinct cdctxorder ordinals 0..event_count-1 (Section 10.5). (a)/(b) are ordering-based mechanisms available under the "none" interleaving guarantee (per channel, when `ordering_scope: "channel"`); (c) is the marker mechanism required under "possible". Condition (b) is available in all single channel streams regardless of session awareness: the producer MUST emit a HEARTBEAT within the configured heartbeat_interval_seconds after any transaction that is followed by an idle period (T-HEARTBEAT), so a completion signal is guaranteed for the final transaction before an idle gap even when no subsequent cdcxid follows. This requirement applies whether session_aware is true or false, because completion-by-HEARTBEAT relies only on single channel total ordering (T-NOINTERLEAVE), not on session awareness.
+T-COMPLETE: When `transaction_interleaving: "none"` is declared, a transaction is complete when (a) the first event of a new cdcxid is observed, OR (b) a HEARTBEAT is received after all events of the transaction have been delivered. When `transaction_interleaving: "possible"` is declared, completion is condition (c): the transaction's TRX_COMMIT has been received and the consumer holds all distinct cdctxorder ordinals 0..event_count-1 (Section 10.5). (a)/(b) are ordering-based mechanisms available under the "none" interleaving guarantee (per channel, when `ordering_scope: "channel"`); (c) is the marker mechanism required under "possible". Consumer-side reliability of (a)/(b) additionally presupposes that composition yields "none" at the point of consumption (C-COMP-1, Section 2.2a). Condition (b) is available in all single channel streams regardless of session awareness: the producer MUST emit a HEARTBEAT within the configured heartbeat_interval_seconds after any transaction that is followed by an idle period (T-HEARTBEAT), so a completion signal is guaranteed for the final transaction before an idle gap even when no subsequent cdcxid follows. This requirement applies whether session_aware is true or false, because completion-by-HEARTBEAT relies only on single channel total ordering (T-NOINTERLEAVE), not on session awareness.
 
 - T-NOINTERLEAVE: Events from different transactions MUST NOT be interleaved in the stream. All events of transaction cdcxid=A MUST be delivered before any event of transaction cdcxid=B, for any A that commits before B. A producer that interleaves transaction events is non-conformant.
 
@@ -1390,7 +1396,7 @@ Producers declaring `transaction_interleaving: "possible"` MUST provide an expli
 
 - **Transaction metadata channel**: A dedicated channel (e.g., a transaction metadata topic) that carries transaction boundary markers (BEGIN/END events with event counts per table). Consumers correlate these markers with events received on data channels.
 
-A multi-channel producer MUST declare its transaction boundary mechanism in STREAM_METADATA (Section 10.4); because markers are mandatory for multi-channel streams, the value none is non-conformant in that topology. The producer also declares the marker delivery placement (a dedicated transaction-metadata channel or per-channel) in STREAM_METADATA so consumers know where to read markers.
+A producer declaring `transaction_interleaving: "possible"` MUST declare its transaction boundary mechanism in STREAM_METADATA (Section 10.4); because markers are mandatory for multi-channel streams, the value none is non-conformant in that topology. The producer also declares the marker delivery placement (a dedicated transaction-metadata channel or per-channel) in STREAM_METADATA so consumers know where to read markers.
 
 Within a single channel, events from different transactions MUST NOT be interleaved (T-NOINTERLEAVE applies per-channel). Across channels, events from different transactions MAY arrive in any order.
 
@@ -1519,7 +1525,7 @@ HEARTBEAT events are interleaved in the data stream alongside DML and DDL events
 
 In multi-channel deployments, HEARTBEAT events provide liveness signaling but MUST NOT be relied upon for transaction boundary detection across channels. A HEARTBEAT on one channel does not guarantee that all events of a transaction have been delivered to other channels.
 
-HEARTBEAT delivery mechanism: A producer MAY emit HEARTBEAT events to a dedicated liveness/control channel, to individual data channels, or both. The producer MUST declare the HEARTBEAT delivery mechanism and interval in STREAM_METADATA (Section 10.4). (Consumer liveness-monitoring guidance is in Appendix A.5/A.11.)
+HEARTBEAT delivery mechanism: A producer MAY emit HEARTBEAT events on its emitted sequence, on a dedicated liveness/control channel, or both; the physical surfacing of HEARTBEATs is a delivery-layer concern (Appendix B). The producer MUST declare the HEARTBEAT interval in STREAM_METADATA (Section 10.4), and SHOULD declare the emission channel arrangement for markers and heartbeats where it is producer-determined. (Consumer liveness-monitoring guidance is in Appendix A.5/A.11.)
 
 ## 10.2 TRUNCATE
 
@@ -1655,8 +1661,8 @@ Every STREAM_METADATA event MUST contain the following fields in its data object
 - **source_db**: Source database system identification
 - **tables**: Array of table identifiers captured in this stream (the *captured tables*; see Terms and Definitions)
 - **heartbeat_interval_seconds**: Integer; default 30. Maximum idle interval before HEARTBEAT emission
-- **ordering_scope**: `"stream"` or `"channel"` -- whether one global arrival order holds across all events, or order is guaranteed only within each channel. MUST be declared (P-SCOPE-1); the conservative value when in doubt is `"channel"` (P-SCOPE-2). Deployment-determined (Section 2.2a).
-- **transaction_interleaving**: `"none"` or `"possible"` -- whether events of different transactions can arrive interspersed at a consumption point. MUST be declared (P-ILV-1); the conservative value when in doubt is `"possible"` (P-ILV-2). Governs the completion strategy (Section 8.3) and the TRX_COMMIT obligation (Section 10.5). Deployment-determined (Section 2.2a).
+- **ordering_scope**: `"stream"` or `"channel"` -- whether the producer emits one globally ordered sequence, or guarantees order only within each emission channel. MUST be declared (P-SCOPE-1); the conservative value when in doubt is `"channel"` (P-SCOPE-2). Producer-determined (emission semantics; Section 2.2a).
+- **transaction_interleaving**: `"none"` or `"possible"` -- whether events of different transactions can arrive interspersed at a consumption point. MUST be declared (P-ILV-1); the conservative value when in doubt is `"possible"` (P-ILV-2). Governs the completion strategy (Section 8.3) and the TRX_COMMIT obligation (Section 10.5). Producer-determined (emission semantics; Section 2.2a).
 - **sequence_continuity**: Declares position comparability across session boundaries ("guaranteed", "best_effort", or "reset") (P-SEQ-4). Source-determined.
 
 The following fields have defined defaults and MAY be omitted; absence MUST be interpreted as the default (Defaults and Silence, Section 2.2a):
@@ -1667,12 +1673,13 @@ The following fields have defined defaults and MAY be omitted; absence MUST be i
 - **transaction_marker_delivery**: For streams declaring `transaction_interleaving: "possible"`, declares where TRX_COMMIT markers are delivered -- "transaction_metadata_channel" (a dedicated logical channel) or "per_channel". (Under `ordering_scope: "stream"` with "possible" interleaving, the stream's one channel and a dedicated metadata channel may coincide; either declared value is then acceptable and consumers treat them identically.) The marker remains an in-band logical event; physical transport coordinates are never embedded.
 - **transaction_visibility**: Declares stream visibility -- "committed_only" (the only value defined in this revision). SHOULD be declared; absent MUST default to "committed_only" (P-TRX-6). A future visibility mode may make uncommitted-transaction records visible; the value space is reserved so that consumers which understand such a future mode can opt into processing uncommitted records (with appropriate rollback handling) rather than fail. Until such a mode is defined, an unrecognized value is handled per C-TRX-1.
 - **bidirectional**: Boolean; absent = `false`. `true` declares this producer is one leg of a bidirectional (active-active) pair, binding the loop-suppression obligation (Section 3.4, P-LOOP-1).
+- **capture_mode**: OPTIONAL informational string identifying the capture technique (e.g., "logminer", "wal", "binlog"). Informational only; consumers derive no behavior from it.
 
 #### Single Channel Stream
 
 When `session_aware` is true, STREAM_METADATA MUST be emitted at the start of every new consumer session, before any OBJECT_METADATA or DML events. The producer detects consumer connection events and emits STREAM_METADATA as the first event to each connecting consumer. These events are session-scoped -- they are NOT part of the durable stream ordering.
 
-When `session_aware` is false, the producer cannot detect consumer connections. STREAM_METADATA MUST be made available via one of the out-of-band mechanisms listed below (control channel, transport metadata, or first record). This delivery choice is driven by `session_aware` (connection-scoped vs out-of-band), not by `ordering_scope`: a sessionless *stream*-ordered deployment uses these same mechanisms.
+When `session_aware` is false, the producer cannot detect consumer connections; it emits STREAM_METADATA as an ordinary event in its sequence, and how that event is surfaced to consumers (control channel, transport metadata, first record) is a delivery-layer concern (see the following subsection and Appendix B). This distinction is driven by `session_aware` (connection-scoped vs sequence-emitted), not by `ordering_scope`: a sessionless *stream*-ordered deployment emits the same way.
 
 ```
 {
@@ -1696,21 +1703,13 @@ When `session_aware` is false, the producer cannot detect consumer connections. 
 }
 ```
 
-#### Multi-Channel / Distributed Topologies
+#### Sessionless and Multi-Channel Delivery
 
-In multi-channel deployments, the producer does not have a direct session relationship with consumers. STREAM_METADATA MUST be made available to consumers via one of the following mechanisms:
-
-- **Control channel**: Published to a dedicated control channel (or compacted durable channel) that consumers read on startup. The producer MUST update the control channel whenever stream configuration changes (e.g., tables added or removed, schema delivery mode changed).
-
-- **Embedded in transport metadata**: Carried as transport-level metadata (e.g., message headers on a designated configuration record, or object storage manifest). The producer MUST ensure the metadata is accessible without reading the data stream.
-
-- **First record per channel**: Published as the first record on each data channel. This approach requires consumers to handle STREAM_METADATA events interspersed with data events.
-
-The producer MUST declare which mechanism is used, and the STREAM_METADATA content MUST be identical regardless of delivery mechanism. (Consumers read STREAM_METADATA before processing data events and adapt their behavior accordingly; see Appendix A.1.)
+When session_aware is false, the producer emits STREAM_METADATA as an ordinary event in its sequence; it cannot deliver it per-session. How STREAM_METADATA is then made discoverable to consumers -- via a control channel, transport metadata (e.g., an object-storage manifest), or as the first record per channel -- is a delivery-layer concern, defined per transport in binding documents and illustrated informatively in Appendix B. The producer's payload-level obligations are: emit STREAM_METADATA at stream start and re-emit it whenever stream configuration changes (tables added or removed, schema delivery mode changed), with identical content regardless of how the delivery layer surfaces it. (Consumers read STREAM_METADATA before processing data events; see Appendix A.1, and for Kafka transports, Appendix B.4.)
 
 ## 10.5 TRX_COMMIT (Transaction Completeness Marker)
 
-TRX_COMMIT is a lifecycle event that gives consumers a deterministic transaction-completeness signal. It is OPTIONAL when `transaction_interleaving: "none"` is declared (completion is reliably inferred from ordering, Section 8.3) and MANDATORY when `transaction_interleaving: "possible"` is declared (P-TRX-1), where ordering cannot signal completion. Note the trigger is the interleaving guarantee, not channel count: a totally-ordered stream with "possible" interleaving requires markers, and a sharded stream with "none" interleaving does not.
+TRX_COMMIT is a lifecycle event that gives consumers a deterministic transaction-completeness signal. It is OPTIONAL when `transaction_interleaving: "none"` is declared (completion of the emitted sequence is reliably inferred from ordering, Section 8.3) and MANDATORY when `transaction_interleaving: "possible"` is declared (P-TRX-1), where ordering cannot signal completion. The trigger is the emission interleaving guarantee, not channel count. Additionally, a producer that does not itself deliver events to consumers SHOULD emit TRX_COMMIT markers even under a "none" declaration (P-TRX-7): markers are the only completion mechanism that survives an unattested delivery layer, under which consumers compose delivered guarantees down to "channel"/"possible" (Section 2.2a, Conservative Composition).
 
 ### 10.5.1 Emission modes
 
@@ -2045,9 +2044,14 @@ This summary lists the producer (and bilateral) conformance requirements. Confor
   - Section: 10.5.4
 
 - **P-INT-1**
-  - Requirement: An intermediary altering channel structure or ordering guarantees assumes the producer role and re-declares capability axes
+  - Requirement: A delivery layer MUST NOT attest preservation of emission guarantees it altered; re-topologizing intermediaries preserve required markers
   - Who: Producer
   - Section: 3.4, 2.2a
+
+- **P-TRX-7**
+  - Requirement: Producers that do not deliver directly to consumers SHOULD emit TRX_COMMIT markers regardless of interleaving declaration
+  - Who: Producer
+  - Section: 10.5, 2.2a
 
 - **S-AUTH-2**
   - Requirement: Credentials MUST NOT be embedded in event payloads or CloudEvents extension attributes
@@ -2200,7 +2204,7 @@ Conformance testing guidance: A conformant stream can be validated end-to-end us
 
 This matrix lists producer (and bilateral) conformance requirements. Consumer-side obligations needed to interoperate at full fidelity are specified as non-normative service-level guidance in Appendix A (organized as a consumer parse pipeline). Requirements marked (SC) or (MC) apply only to the corresponding profile (Section 2.2a); the qualifier (BD) applies only to producers declaring `bidirectional: true`.
 
-**Bilateral rows and the Consumer column.** Three rows below retain a Consumer MUST (schema delivery before first DML, closed-world schema enforcement, payload-encoding semantics preservation). These rules define correct *interpretation of the wire contract itself* -- a party on either side that violates them misreads the format, not merely its own service level. Consumer MUST entries in this matrix exist to make conformance test suites meaningful: they define what a test harness verifies when exercising the consumer side of the contract. They are **not directives to real-world consumers** of OpenCDC streams, whose behavior remains service-level guidance per Appendix A and ADR-0025.
+**Bilateral rows and the Consumer column.** Four rows below retain a Consumer MUST (schema delivery before first DML, closed-world schema enforcement, payload-encoding semantics preservation, and conservative composition of delivered guarantees). These rules define correct *interpretation of the wire contract itself* -- a party on either side that violates them misreads the format, not merely its own service level. Consumer MUST entries in this matrix exist to make conformance test suites meaningful: they define what a test harness verifies when exercising the consumer side of the contract. They are **not directives to real-world consumers** of OpenCDC streams, whose behavior remains service-level guidance per Appendix A and ADR-0025.
 
 | Capability | Producer | Consumer | Both | Section | Requirements |
 |---|---|---|---|---|---|
@@ -2227,9 +2231,11 @@ This matrix lists producer (and bilateral) conformance requirements. Consumer-si
 | Payload encoding preserves field semantics | MUST | MUST |  | 2.7 | P-TYPE-3 |
 | Declare ordering_scope (stream/channel) | MUST |  |  | 2.2a, 10.4 | P-SCOPE-1 |
 | Declare transaction_interleaving (none/possible) | MUST |  |  | 2.2a, 10.4 | P-ILV-1 |
+| Conservative composition of delivered guarantees |  | MUST |  | 2.2a | C-COMP-1 |
 | Schema retrievable at any replayable position | MUST |  |  | 8.2 | R-POS-7 |
 | Marker availability >= data-channel retention | MUST |  |  | 10.5.4 | P-RET-1 |
-| Intermediary re-declaration on re-topologizing | MUST |  |  | 3.4 | P-INT-1 |
+| Delivery-layer attestation integrity | MUST |  |  | 3.4 | P-INT-1 |
+| Markers when not delivering directly (payload-only producers) | SHOULD |  |  | 10.5 | P-TRX-7 |
 | Conservative defaults: channel-scope unless total order enforced; possible unless contiguity guaranteed | MUST |  |  | 2.2a | P-SCOPE-2, P-ILV-2 |
 | Multi-channel: TRX_COMMIT markers mandatory (transaction_boundaries != none) | MUST |  |  | 8.3, 10.5 | P-TRX-1 |
 | TRX_COMMIT event_count = distinct cdctxorder ordinals (DDL counts) | MUST |  |  | 10.5 | P-TRX-2 |
@@ -2359,6 +2365,7 @@ Axes you must read and act on:
 - **`sequence_continuity`** -- `guaranteed` / `best_effort` / `reset`; governs cross-session `pos.lsn` comparison (A.7).
 - **`heartbeat_interval_seconds`** and HEARTBEAT delivery -- where to read liveness signals (A.5/A.11).
 - *(v0.7.0 adds `ordering_scope`, `transaction_interleaving`, `transaction_boundaries`, `transaction_visibility`, `bidirectional` -- see A.5, A.10, A.12.1.)*
+- **Compose before you trust (C-COMP-1):** the ordering axes describe the producer's emitted sequence. Before selecting a consumption strategy (A.5, A.10, A.12.1), compose the emission declaration with your delivery layer's attestation; absent an attestation, treat delivered guarantees as `ordering_scope: "channel"` with `transaction_interleaving: "possible"` regardless of the declaration. Do not upgrade based on observed transport topology alone. For Kafka transports, see Appendix B.4.
 
 ## A.2 Step 2 -- Acquire and cache the schema (OBJECT_METADATA)
 
@@ -2399,9 +2406,9 @@ Validation / closed-world:
 
 ## A.5 Step 5 -- Detect transaction completion
 
-How you know a transaction is complete depends on topology:
-- **Single channel:** a transaction is complete when you observe (a) the first event of the next `cdcxid`, or (b) a HEARTBEAT after the transaction. This inference is reliable because the single channel is totally ordered (no interleaving).
-- **Multi-channel:** the cross-channel inference above is **not** reliable. Use an explicit completeness marker -- the **TRX_COMMIT** event and its `event_count` (v0.7.0; see A.10). Subscribe to the HEARTBEAT/marker channel(s) the producer declared in STREAM_METADATA.
+How you know a transaction is complete depends on the **composed delivered guarantees** (emission declaration x delivery attestation, C-COMP-1 -- see A.1), not the raw declaration:
+- **Composed "stream"/"none" (single profile):** a transaction is complete when you observe (a) the first event of the next `cdcxid`, or (b) a HEARTBEAT after the transaction. This inference is reliable only when composition yields "none" interleaving -- i.e., the emission declaration is "none" AND the delivery layer attests preservation.
+- **Composed "channel" or "possible" (including any unattested delivery layer):** the ordering inference above is **not** reliable. Use an explicit completeness marker -- the **TRX_COMMIT** event and its `event_count` (v0.7.0; see A.10). Subscribe to the HEARTBEAT/marker channel(s) the producer declared in STREAM_METADATA.
 - Track time since the last HEARTBEAT to distinguish an idle stream from a broken one (A.11) *(C-HB-1, SHOULD)*.
 
 ## A.6 Step 6 -- Deduplicate and apply
@@ -2481,6 +2488,8 @@ When the stream declares `transaction_interleaving: "possible"`, you cannot infe
 | false | reset | next-cdcxid / HEARTBEAT (SC) | control channel / each-event | not comparable; rebaseline |
 | false | guaranteed | next-cdcxid / HEARTBEAT (SC) | control channel / each-event | comparable |
 
+The matrix below is keyed on the **composed delivered guarantees** (emission declaration x delivery attestation, per C-COMP-1) -- not on the raw emission declaration.
+
 **By declared guarantees (`ordering_scope` x `transaction_interleaving`):**
 
 | `ordering_scope` | `transaction_interleaving` | Completion detection | Assembly | Legal? |
@@ -2532,54 +2541,55 @@ The consumer obligations (C-*) below are listed in the order a consumer encounte
 
 | # | Consumer obligation | Appendix A step |
 |---|---|---|
-| 1 | `C-SCHEMA-1` | A.1 |
-| 2 | `C-SCHEMA-2` | A.2 |
-| 3 | `C-SCHEMA-3` | A.2 |
-| 4 | `C-SCHEMA-4` | A.2 |
-| 5 | `C-ORD-1` | A.2 |
-| 6 | `C-TYPE-1` | A.3 |
-| 7 | `C-LOB-1` | A.3 |
-| 8 | `C-LOB-2` | A.3 |
-| 9 | `C-DML-1` | A.3 |
-| 10 | `C-VAL-1` | A.3 |
-| 11 | `C-VAL-2` | A.3 |
-| 12 | `C-VAL-3` | A.3 |
-| 13 | `C-ORD-2` | A.4 |
-| 14 | `C-SEQ-1` | A.4 |
-| 15 | `C-ORD-3` | A.4 |
-| 16 | `C-ORD-3-MC` | A.4 |
-| 17 | `C-KEY-1` | A.4 |
-| 18 | `C-HB-1` | A.5 |
-| 19 | `C-IDEM-1` | A.6 |
-| 20 | `C-IDEM-2` | A.6 |
-| 21 | `C-IDEM-3` | A.6 |
-| 22 | `C-SEQ-2` | A.7 |
-| 23 | `C-SEQ-3` | A.7 |
-| 24 | `C-SEQ-4` | A.7 |
-| 25 | `C-TRUNC-1` | A.8 |
-| 26 | `C-TRUNC-2` | A.8 |
-| 27 | `C-TRUNC-3` | A.8 |
-| 28 | `C-TRUNC-4` | A.8 |
-| 29 | `C-COMPAT-1` | A.8 |
-| 30 | `C-TRX-1` | A.10 |
-| 31 | `C-TRX-2` | A.10 |
-| 32 | `C-TRX-3` | A.10 |
-| 33 | `C-ILV-1` | A.10 |
+| 1 | `C-COMP-1` | A.1 |
+| 2 | `C-SCHEMA-1` | A.1 |
+| 3 | `C-SCHEMA-2` | A.2 |
+| 4 | `C-SCHEMA-3` | A.2 |
+| 5 | `C-SCHEMA-4` | A.2 |
+| 6 | `C-ORD-1` | A.2 |
+| 7 | `C-TYPE-1` | A.3 |
+| 8 | `C-LOB-1` | A.3 |
+| 9 | `C-LOB-2` | A.3 |
+| 10 | `C-DML-1` | A.3 |
+| 11 | `C-VAL-1` | A.3 |
+| 12 | `C-VAL-2` | A.3 |
+| 13 | `C-VAL-3` | A.3 |
+| 14 | `C-ORD-2` | A.4 |
+| 15 | `C-SEQ-1` | A.4 |
+| 16 | `C-ORD-3` | A.4 |
+| 17 | `C-ORD-3-MC` | A.4 |
+| 18 | `C-KEY-1` | A.4 |
+| 19 | `C-HB-1` | A.5 |
+| 20 | `C-IDEM-1` | A.6 |
+| 21 | `C-IDEM-2` | A.6 |
+| 22 | `C-IDEM-3` | A.6 |
+| 23 | `C-SEQ-2` | A.7 |
+| 24 | `C-SEQ-3` | A.7 |
+| 25 | `C-SEQ-4` | A.7 |
+| 26 | `C-TRUNC-1` | A.8 |
+| 27 | `C-TRUNC-2` | A.8 |
+| 28 | `C-TRUNC-3` | A.8 |
+| 29 | `C-TRUNC-4` | A.8 |
+| 30 | `C-COMPAT-1` | A.8 |
+| 31 | `C-TRX-1` | A.10 |
+| 32 | `C-TRX-2` | A.10 |
+| 33 | `C-TRX-3` | A.10 |
+| 34 | `C-ILV-1` | A.10 |
 
 # Appendix B: Transport Mapping Examples (Informative)
 
-This appendix is non-normative. It provides guidance on how common transport technologies map to the two specification dimensions: channel count and session awareness.
+This appendix is non-normative, and — like Appendix A — directs no MUST-level obligation at consumers; guidance here is SHOULD-ceiling. It illustrates how common transport technologies realize the delivery layer for an OpenCDC stream: how many delivery channels they present, whether session awareness is available, and how the emission-level declarations (Section 2.2a) compose with each transport (C-COMP-1).
 
 *v0.7.0 note:* "channel count" maps to the declared guarantee axes (Section 2.2a) -- a single totally-ordered channel supports `ordering_scope: "stream"` with `transaction_interleaving: "none"` (the *single* profile); any partitioned, topic-per-table, or fan-out arrangement (e.g., Kafka topic-per-table, object-storage parallel reads) is `ordering_scope: "channel"` and, absent a structurally enforced per-channel contiguity invariant, `transaction_interleaving: "possible"` -- which REQUIRES TRX_COMMIT markers (Section 10.5), delivered per the declared `transaction_marker_delivery`. Declared values are a deployment-time output of the assembled producer: infrastructure changes that alter topology (repartitioning, routing changes) require re-declaration.
 
 ## B.1 Dimension Mapping Table
 
-| Transport | Channel Count | session_aware | Notes |
+| Transport | Delivery channels | session_aware | Notes |
 |---|---|---|---|
 | Direct socket / TCP connection | Single Channel | true | Producer detects consumer connect/disconnect via socket lifecycle. Schema on Reconnect via in-stream re-emission. STREAM_METADATA emitted as first event per session. |
 | Trail file / change log file delivery | Single Channel | true | Producer writes sequentially; consumer reads from file. Session start is detectable when consumer opens a new read handle. |
 | Single-partition Kafka topic | Single Channel | false | Total ordering guaranteed within the partition. Producer publishes without knowledge of consumer state. Schema on Each Event or control channel required. |
-| Topic-per-table Kafka (multiple partitions) | Multi-Channel | false | Events for different tables arrive on independent topics. Transaction assembly by cdcxid. TRX_COMMIT markers recommended. |
+| Topic-per-table Kafka (multiple partitions) | Multi-Channel | false | Events for different tables arrive on independent topics. Transaction assembly by cdcxid. TRX_COMMIT markers required when the producer emits with "possible" interleaving (P-TRX-1), and recommended for payload-only producers regardless (P-TRX-7). |
 | Multi-partition single Kafka topic | Multi-Channel | false | Events partitioned by key across partitions. Per-partition ordering only. |
 | Object storage (S3, GCS, Azure Blob) | Multi-Channel | false | Events written as objects/files. No ordering guarantees across objects. Consumer-driven consumption. |
 | gRPC / Arrow Flight | Single Channel | true | Bidirectional stream with session lifecycle. Producer detects client connections via gRPC stream events. |
@@ -2592,7 +2602,7 @@ The `session_aware` declaration in STREAM_METADATA drives the consumer's schema 
 
 - **session_aware: true** — The consumer can expect session-scoped STREAM_METADATA as the first event and OBJECT_METADATA re-emission on connect (Schema on Reconnect). The consumer does not need to independently locate schema information.
 
-- **session_aware: false** — The consumer MUST NOT expect session-scoped events. It must obtain STREAM_METADATA and schema information via one of: Schema on Each Event (embedded _schema in every DML event), a control channel, transport metadata, or a schema registry. The consumer reads the `schema_delivery` object in STREAM_METADATA to determine which mechanism the producer uses.
+- **session_aware: false** — The consumer SHOULD NOT expect session-scoped events. It must obtain STREAM_METADATA and schema information via one of: Schema on Each Event (embedded _schema in every DML event), a control channel, transport metadata, or a schema registry. The consumer reads the `schema_delivery` object in STREAM_METADATA to determine which mechanism the producer uses.
 
 ## B.3 Transport-Specific Implementation Notes
 
@@ -2601,5 +2611,25 @@ The `session_aware` declaration in STREAM_METADATA drives the consumer's schema 
 **File-based transports (trail files, object storage):** STREAM_METADATA can be stored as a manifest file or header record in the file/object structure. Consumers read the manifest before processing data files.
 
 **Direct connections (sockets, gRPC):** STREAM_METADATA is emitted as the first event in the session stream. No additional infrastructure is needed.
+
+## B.4 Kafka Consumption Guidance (Informative)
+
+This section is informative and prefigures a future normative Kafka transport binding (see Section 12). It does not create consumer conformance obligations under this specification; where guidance below is phrased as a recommendation, it is a SHOULD-level practice, not a MUST. Deployments that follow this guidance now should expect minimal change when a normative Kafka binding is published, since the binding is expected to formalize the practices described here.
+
+**Composition on Kafka.** Absent a binding attestation, a consumer SHOULD treat delivered guarantees as `ordering_scope: "channel"` and `transaction_interleaving: "possible"` even when the producer's emission declaration is `"stream"`/`"none"` (Section 2.2a, Conservative Composition). A single-partition topic MAY justify locally stronger assumptions, but only where the partition count is structurally enforced by provisioning policy or topic-creation configuration -- never from observation alone, since Kafka permits increasing a topic's partition count at runtime without restarting the producer, which can silently invalidate a previously safe assumption.
+
+**Channel mapping.** On Kafka, the emission/delivery *channel* (Terms and Definitions) corresponds to the partition, not the topic. A topic with many partitions is a many-channel delivery path even if the producer's emission declaration describes a single logically ordered sequence.
+
+**Assembly reality.** Kafka consumer groups assign partitions to different group members, so events belonging to one `cdcxid` may be received by different consumer processes. Three practical strategies, in increasing order of complexity: (1) a single reader consuming all relevant topics/partitions directly, avoiding cross-process assembly; (2) a repartition-by-`cdcxid` stage (e.g., a stream-processing topology) that regroups events before a stateful assembly step; (3) per-partition apply with eventual convergence, which is a deliberately weaker service level (Appendix A) appropriate only where cross-table transaction atomicity is not required by the consuming application.
+
+**Checkpointing.** A consumer SHOULD commit Kafka transport offsets as the mechanical checkpoint, while persisting `cdcpos` (Section 8.1) as the logical resume position. On resume, prefer `cdcpos` as the position of record and treat the Kafka offset as its transport-specific realization.
+
+**Control-topic reading.** Where STREAM_METADATA and schema are delivered via a control channel realized as a Kafka topic, a consumer SHOULD read the topic to its end and retain the highest `metadata_revision` per key, rather than stopping at the first record per key. Schema versions SHOULD be cached by version identifier, not overwritten by a "latest only" cache, so that a replayed position can still resolve its governing schema (see R-POS-7).
+
+**Marker topics.** A consumer SHOULD subscribe to the declared TRX_COMMIT marker channel (Section 10.5, `transaction_marker_delivery`) and be aware that marker-topic retention needs to cover data-topic retention (P-RET-1) for replay to remain schema- and transaction-resolvable. A transaction whose marker has not arrived within a bounded interval SHOULD be surfaced per the bounded-wait guidance in Appendix A.10, rather than resolved automatically.
+
+**Transport transactions.** Kafka's own transactional producer/read-committed consumer feature can provide atomic multi-partition visibility at the transport level. This is a useful deployment optimization but does not substitute for the logical completion algorithm defined in Section 10.5.4: a consumer relying on transport transactions alone, without the logical `cdcxid`/TRX_COMMIT assembly, is not interoperable with producers or consumers that do not share the same transport-level guarantee.
+
+**Schema-race and bounded-wait mechanics.** The general guidance in Appendix A.2 (control-channel schema race) and Appendix A.10 (bounded wait for missing markers) applies on Kafka via ordinary consumer poll-loop mechanics: pausing consumption of the affected partition (e.g., a `pause()`/`resume()` cycle), re-polling the control topic until the required schema version or marker arrives, and resuming only then. Neither situation should be treated as corruption; both are ordinary races between independently-progressing channels.
 
 OpenCDC Working Group -- Draft for Discussion
