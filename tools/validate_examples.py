@@ -26,6 +26,7 @@ PAYLOAD = {
     "HEARTBEAT": load("opencdc-heartbeat"),
     "DML": load("opencdc-dml"),
     "DDL": load("opencdc-ddl"),
+    "TRX_COMMIT": load("opencdc-trx-commit"),
 }
 
 def strip_comments(block):

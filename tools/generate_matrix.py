@@ -13,18 +13,20 @@ text = open(spec_path, encoding="utf-8").read()
 reg = yaml.safe_load(open(yaml_path))
 known = {r["id"] for r in reg["requirements"]}
 for row in reg["matrix"]:
+    assert not (row.get("req_ids") and row.get("req_note")), \
+        f"matrix row has both req_ids and req_note: {row['capability']}"
     for rid in row.get("req_ids", []):
         assert rid in known, f"matrix references unknown requirement ID {rid}"
 
 m = re.search(r"(## 19\.1 Compliance Matrix\n\n)(.*?)(^## 19\.2 Conformance Test Scenarios)", text, re.S | re.M)
 assert m, "Section 19.1 boundaries not found"
-intro = m.group(2).split("\n\n")[0]
+intro = m.group(2).split("| Capability")[0].rstrip("\n")   # all framing paragraphs, not just the first
 tbl = [intro, "", "| Capability | Producer | Consumer | Both | Section | Requirements |", "|---|---|---|---|---|---|"]
 for row in reg["matrix"]:
     tbl.append("| " + " | ".join([
         row["capability"], row.get("producer") or "", row.get("consumer") or "",
-        row.get("both") or "", ", ".join(str(s) for s in row["sections"]),
-        ", ".join(row.get("req_ids", []))]) + " |")
+        row.get("delivery_layer") or "", ", ".join(str(s) for s in row["sections"]),
+        row.get("req_note") or ", ".join(row.get("req_ids", []))]) + " |")
 new = "\n".join(tbl) + "\n\n"
 if check:
     if m.group(2) == new:
