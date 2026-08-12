@@ -1813,7 +1813,7 @@ OpenCDC's normative security surface is limited to what affects the **wire contr
 
 - S-AUTH-2: Credentials MUST NOT be embedded in event payloads or CloudEvents extension attributes. Authentication material belongs to the transport, never to the event.
 
-- S-AUTHZ-1: A producer SHOULD enforce table-level access control on what it emits to a given authenticated consumer -- emitting events only for tables that consumer is authorized to read. This is a producer obligation because OpenCDC multiplexes many tables onto one stream, so transport ACLs (which are channel/topic-grained) cannot enforce per-table authorization; only the producer's emission decision can.
+- S-AUTHZ-1: A producer that is 'session_aware = true' SHOULD enforce table-level access control on what it emits to a given authenticated consumer -- emitting events only for tables that consumer is authorized to read. For producers who are session aware, this is an obligation because OpenCDC multiplexes many tables onto one stream, so transport ACLs (which are channel/topic-grained) cannot enforce per-table authorization; only the producer's emission decision can.  For producers that are not session aware, they may not have any ability to enforce table-level access controls.
 
 - S-AUTHZ-2: A producer SHOULD support column-level masking or exclusion for columns containing PII or sensitive data, configured per consumer identity. Masked columns MUST appear in the OBJECT_METADATA schema as their original source_type but with a masking indicator, and MUST emit a sentinel value (e.g., null or a fixed mask string) in DML payloads. (This is a wire-contract rule: it constrains OBJECT_METADATA and DML payload content.)
 
