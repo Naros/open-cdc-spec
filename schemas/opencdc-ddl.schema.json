@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://opencdc.org/schemas/opencdc-ddl.schema.json",
-  "title": "OpenCDC DDL data payload (Section 9.1)",
+  "title": "OpenCDC DDL data payload (Section 9.1; ddl object shape per ddl_capture mode)",
   "type": "object",
   "properties": {
     "table": {
@@ -32,8 +32,29 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "statement"
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "statement"
+          ]
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "statement"
+                ]
+              },
+              {
+                "required": [
+                  "statement_truncated"
+                ]
+              }
+            ]
+          }
+        }
       ]
     },
     "pos": {
@@ -64,5 +85,6 @@
     "table",
     "ddl",
     "pos"
-  ]
+  ],
+  "additionalProperties": false
 }

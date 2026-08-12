@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://opencdc.org/schemas/opencdc-stream-metadata.schema.json",
-  "title": "OpenCDC STREAM_METADATA data payload (Sections 10.4, 4.4, 8.4.1)",
+  "title": "OpenCDC STREAM_METADATA data payload (Sections 10.4, 2.2a, 4.4, 8.4.1)",
   "type": "object",
   "properties": {
     "producer": {
       "type": "string"
     },
     "opencdc_version": {
-      "type": "string"
+      "const": "0.3"
     },
     "source_db": {
       "type": "string"
@@ -25,6 +25,49 @@
     "heartbeat_interval_seconds": {
       "type": "integer",
       "minimum": 1
+    },
+    "ordering_scope": {
+      "enum": [
+        "stream",
+        "channel"
+      ]
+    },
+    "transaction_interleaving": {
+      "enum": [
+        "none",
+        "possible"
+      ]
+    },
+    "transaction_boundaries": {
+      "enum": [
+        "none",
+        "commit_all",
+        "commit_multi_event"
+      ]
+    },
+    "transaction_marker_delivery": {
+      "enum": [
+        "transaction_metadata_channel",
+        "per_channel"
+      ]
+    },
+    "transaction_visibility": {
+      "enum": [
+        "committed_only"
+      ]
+    },
+    "bidirectional": {
+      "type": "boolean"
+    },
+    "ddl_capture": {
+      "enum": [
+        "verbatim",
+        "structural",
+        "none"
+      ]
+    },
+    "session_aware": {
+      "type": "boolean"
     },
     "schema_delivery": {
       "type": "object",
@@ -43,24 +86,29 @@
         }
       },
       "required": [
-        "schema_on_change",
-        "schema_on_reconnect",
-        "schema_on_each_event"
+        "schema_on_change"
       ],
+      "additionalProperties": false,
       "anyOf": [
         {
           "properties": {
             "schema_on_reconnect": {
               "const": true
             }
-          }
+          },
+          "required": [
+            "schema_on_reconnect"
+          ]
         },
         {
           "properties": {
             "schema_on_each_event": {
               "const": true
             }
-          }
+          },
+          "required": [
+            "schema_on_each_event"
+          ]
         }
       ]
     },
@@ -73,7 +121,37 @@
     }
   },
   "required": [
-    "schema_delivery",
-    "sequence_continuity"
+    "producer",
+    "opencdc_version",
+    "source_db",
+    "tables",
+    "heartbeat_interval_seconds",
+    "ordering_scope",
+    "transaction_interleaving",
+    "sequence_continuity",
+    "schema_delivery"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "transaction_interleaving": {
+            "const": "possible"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "transaction_boundaries",
+          "transaction_marker_delivery"
+        ],
+        "properties": {
+          "transaction_boundaries": {
+            "const": "commit_all"
+          }
+        }
+      }
+    }
   ]
 }

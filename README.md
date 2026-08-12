@@ -8,16 +8,16 @@ Built on [CloudEvents v1.1](https://cloudevents.io/) for envelopes, and targetin
 
 | Document | Role | Current |
 |---|---|---|
-| [spec/OpenCDC-Specification.md](spec/OpenCDC-Specification.md) | **Normative.** Event structure, ordering, producer contract, lifecycle, replay, conformance | Draft v0.6.8 |
+| [spec/OpenCDC-Specification.md](spec/OpenCDC-Specification.md) | **Normative.** Event structure, ordering, producer contract, capability axes, lifecycle, replay, conformance | Draft v0.7.0 |
 | [spec/OpenCDC-TypeSystem.md](spec/OpenCDC-TypeSystem.md) | **Normative.** Two-layer type system, canonical vocabulary, wire encoding rules | Draft v0.2 |
-| [spec/OpenCDC-ArchitectureDecisionRecord.md](spec/OpenCDC-ArchitectureDecisionRecord.md) | Informative. The "why" behind every spec decision (ADR-0001..0025) | v0.1 |
+| [spec/OpenCDC-ArchitectureDecisionRecord.md](spec/OpenCDC-ArchitectureDecisionRecord.md) | Informative. The "why" behind every spec decision (ADR-0001..0035) | v0.2 |
 | [spec/OpenCDC-UserStories.md](spec/OpenCDC-UserStories.md) | Informative. Six motivating use cases with priorities | Fifth Draft |
-| [spec/GLOSSARY.md](spec/GLOSSARY.md) | Informative. Definitions of all terms used in the specification family | v1.0 |
-| [examples/OpenCDC-PayloadExamples.md](examples/OpenCDC-PayloadExamples.md) | Informative. Annotated six-event reference stream | wire 0.2 |
-| [schemas/](schemas/) | Informative tooling. JSON Schemas for envelope + payloads | wire 0.2 |
-| [registry/requirements.yaml](registry/requirements.yaml) | Working-group data. Requirements register + compliance matrix source | spec 0.6.x |
+| [spec/GLOSSARY.md](spec/GLOSSARY.md) | Informative. Definitions of all terms used in the specification family | v1.1 |
+| [examples/OpenCDC-PayloadExamples.md](examples/OpenCDC-PayloadExamples.md) | Informative. Annotated reference stream (9 events incl. TRX_COMMIT) | wire 0.3 |
+| [schemas/](schemas/) | Informative tooling. JSON Schemas for envelope + payloads (closed-world) | wire 0.3 |
+| [registry/requirements.yaml](registry/requirements.yaml) | Working-group data. Requirements register + compliance matrix source | spec 0.7.0 |
 
-Authority rules (who wins on conflict) are defined in the Specification's *Document Authority and Scope* section. Versions across the family are tracked in [versions.yaml](versions.yaml).
+Authority rules (who wins on conflict) are defined in the Specification's *Document Authority and Scope* section. Versions across the family are tracked in [registry/versions.yaml](registry/versions.yaml).
 
 ## Reading Paths
 
@@ -48,4 +48,4 @@ CI runs `check.sh` on every pull request (`.github/workflows/ci.yml`).
 
 ## Status
 
-OpenCDC is a **draft for discussion** by the OpenCDC Working Group. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to participate and [GOVERNANCE.md](GOVERNANCE.md) for working-group structure and decision-making. The specification governs producer behavior; consumer behavior is non-normative service-level guidance (see ADR-0025). Wire protocol version: **0.2**.
+OpenCDC is a **draft for discussion** by the OpenCDC Working Group. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to participate and [GOVERNANCE.md](GOVERNANCE.md) for working-group structure and decision-making. The specification governs producer behavior; consumer behavior is non-normative service-level guidance (see ADR-0025). Wire protocol version: **0.3**.

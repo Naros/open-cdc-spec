@@ -85,9 +85,6 @@
       "type": "string"
     },
     "_schema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "$id": "https://opencdc.org/schemas/opencdc-object-metadata.schema.json",
-      "title": "OpenCDC OBJECT_METADATA data payload (Sections 4.2, 4.3)",
       "type": "object",
       "properties": {
         "table": {
@@ -210,5 +207,6 @@
     "_null_columns",
     "_lob_overflow",
     "pos"
-  ]
+  ],
+  "additionalProperties": false
 }

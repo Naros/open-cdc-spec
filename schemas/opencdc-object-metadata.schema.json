@@ -72,7 +72,8 @@
           "parameters",
           "nullable",
           "pk"
-        ]
+        ],
+        "additionalProperties": false
       }
     },
     "json_schema": {
@@ -88,5 +89,6 @@
     "primary_key",
     "columns",
     "json_schema"
-  ]
+  ],
+  "additionalProperties": false
 }
