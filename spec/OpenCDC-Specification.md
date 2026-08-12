@@ -1278,7 +1278,7 @@ The following rules apply to producers in every topology, except where a rule st
 
 - R-POS-5: At-least-once delivery is the minimum guarantee. Producers MAY emit duplicate events during replay. Consumers handle duplicates per Appendix A.3 (Idempotency).
 
-- R-POS-7 (Schema retrievability at replayable positions): The OBJECT_METADATA version in effect at any replayable position MUST remain retrievable for the replay window the producer supports. A schema-delivery arrangement whose retention can destroy a schema version while positions governed by it remain replayable is non-conformant. (For control-channel deployments this is typically satisfied by retaining all schema versions -- see Appendix B; superseded versions may be pruned only when no supported replay position requires them.)
+- R-POS-7 (Schema retrievability at replayable positions) -- Delivery-layer obligation (binding-defined): The OBJECT_METADATA version in effect at any replayable position MUST remain retrievable for the replay window the producer supports. A schema-delivery arrangement whose retention can destroy a schema version while positions governed by it remain replayable is non-conformant. (For control-channel deployments this is typically satisfied by retaining all schema versions -- see Appendix B; superseded versions may be pruned only when no supported replay position requires them.)
 
 **Replay Guarantee Summary**
 Conformant replay MUST satisfy all three of the following:
@@ -1720,7 +1720,7 @@ The producer declares `transaction_boundaries` in STREAM_METADATA (Section 10.4)
 TRX_COMMIT is an OpenCDC-layer logical marker; it does not depend on, and MUST NOT embed, transport-level transaction mechanisms (e.g., Kafka transactions / KIP-98) or physical coordinates. A replay window that includes any event of transaction X MUST also deliver X's TRX_COMMIT (when markers are in effect), with a stable `id` and identical `event_count` (R-POS-6).
 
 
-- P-RET-1 (Marker availability parity): TRX_COMMIT markers MUST remain available for at least as long as the data events they complete. On any transport, marker retention/availability MUST be greater than or equal to the retention of every data channel the markers cover; a replay window that includes data events MUST include their markers (see also R-POS-6).
+- P-RET-1 (Marker availability parity) -- Delivery-layer obligation (binding-defined): TRX_COMMIT markers MUST remain available for at least as long as the data events they complete. On any transport, marker retention/availability MUST be greater than or equal to the retention of every data channel the markers cover; a replay window that includes data events MUST include their markers (see also R-POS-6).
 
 # 11. Idempotency and Deduplication
 
@@ -1876,7 +1876,7 @@ The production-deployment best practices formerly recorded here (schema-mismatch
 
 # 17. Normative Summary
 
-This summary lists the producer (and bilateral) conformance requirements. Conformance is capability-scoped: a producer satisfies the rules that apply to the capabilities it declares in STREAM_METADATA (ordering_scope, transaction_interleaving, transaction_boundaries, session_aware, schema_delivery, sequence_continuity, bidirectional, ddl_capture), not necessarily every rule in the document (see Section 19). Consumer obligations (C-* and consumer-side R-*) are non-normative and are defined as a consumer parse pipeline in Appendix A; they are not listed here. SHOULD requirements are register-only -- see the relevant section for the complete normative text. 
+This summary lists the producer (and bilateral) conformance requirements. Conformance is capability-scoped: a producer satisfies the rules that apply to the capabilities it declares in STREAM_METADATA (ordering_scope, transaction_interleaving, transaction_boundaries, session_aware, schema_delivery, sequence_continuity, bidirectional, ddl_capture), not necessarily every rule in the document (see Section 19). Consumer obligations (C-* and consumer-side R-*) are non-normative and are defined as a consumer parse pipeline in Appendix A; they are not listed here. SHOULD requirements are register-only -- see the relevant section for the complete normative text.  
 
 - **P-ORD-1**
   - Requirement: Emit events in source commit order (grouped by transaction, in source commit sequence; cdctxorder within each)
