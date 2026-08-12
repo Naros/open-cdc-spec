@@ -463,7 +463,7 @@ OpenCDC adopts CloudEvents v1.1 as its mandatory envelope specification. Every O
 
 - **id**
   - Required: MUST
-  - Value / Constraint: UUID v4 MUST be used for DML and DDL events, where (source, id) is the load-bearing deduplication key. Lifecycle events (OBJECT_METADATA, STREAM_METADATA, HEARTBEAT) MUST carry a stream-unique, replay-stable id but MAY use a structured descriptive form (e.g., schema-ORDERS-v1) when that form is more operationally useful than an opaque UUID. Regardless of form, id MUST be stable across replay of the same event.
+  - Value / Constraint: UUID v4 MUST be used for DML and DDL events, where (source, id) is the primary deduplication key. Lifecycle events (OBJECT_METADATA, STREAM_METADATA, HEARTBEAT) MUST carry a stream-unique, replay-stable id but MAY use a structured descriptive form (e.g., schema-ORDERS-v1) when that form is more operationally useful than an opaque UUID. Regardless of form, id MUST be stable across replay of the same event.
 
 - **source**
   - Required: MUST
