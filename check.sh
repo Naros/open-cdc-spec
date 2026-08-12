@@ -38,6 +38,10 @@ run "Section 19.1 drift"  python3 tools/generate_matrix.py --check "$SPEC" "$REG
 run "Register <-> body"   python3 tools/audit_register.py "$SPEC" "$REG"
 
 echo ""
+echo "Version manifest"
+run "versions.yaml agreement" python3 tools/check_versions.py "$SPEC" registry/versions.yaml "$REG"
+
+echo ""
 echo "Navigation checks"
 run "Tables of contents"  python3 tools/generate_toc.py --check $TOC_DOCS
 

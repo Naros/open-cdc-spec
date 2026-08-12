@@ -5,8 +5,25 @@ All notable changes to the OpenCDC specification family are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions listed in reverse chronological order.
 
 **Two versioning tracks** (see [versions.yaml](registry/versions.yaml) and [GOVERNANCE.md](GOVERNANCE.md)):
-- **Wire protocol version** — `cdcspecversion` carried in every event. Changes only when the on-wire contract changes. Currently `0.2`.
+- **Wire protocol version** — `cdcspecversion` carried in every event. Changes only when the on-wire contract changes. Currently `0.3`.
 - **Document revision** — tracks editorial and structural changes. Patch (x.y.Z) = editorial; minor (x.Y.0) = structural additions.
+
+---
+
+## [0.7.0] — July 2026
+
+**Capability-axis release.** Wire protocol **0.2 → 0.3**. Clean regeneration from the v0.6.9 baseline per the working-group Rebase Decision Manifest; supersedes the prior v0.7.0 PR draft. Full detail in the specification Change Log (relocated to the back of the document in this revision).
+
+- `channel_model` removed; replaced by two mandatory guarantee axes: `ordering_scope` ("stream" | "channel") and `transaction_interleaving` ("none" | "possible"). New axes: `bidirectional`, `ddl_capture`, `transaction_visibility` (reserved, fail-closed).
+- New normative **Terms and Definitions** section; §2.2a rebuilt as Capability Axes, Authority, and Legal Combinations with a Defaults-and-Silence rule (silence is never coverage).
+- **TRX_COMMIT** (§10.5) defined normatively: mandatory under `transaction_interleaving: "possible"` (P-TRX-1); `event_count` counts distinct DML+DDL ordinals; new `meta.TRX_COMMIT` type; `dml.*`/`ddl.*` vocabularies declared closed.
+- `dataschema` dual-format contradiction resolved: it always carries the OBJECT_METADATA id; new OPTIONAL `cdcschemauri` extension attribute for registry URIs, mandatory under `schema_by_reference` (P-SCHEMA-6).
+- Loop suppression re-keyed to the **ingress counterpart** (P-LOOP-1, BD qualifier); `bidirectional` scoped pairwise.
+- Ordering doctrine corrected to **source commit order**; emission-schema-change trigger for OBJECT_METADATA re-emission; incarnation rule for re-created subjects.
+- **Attestation unwind (ADR-0034):** §2.2b removed; Delivery Layer conformance party withdrawn; C-COMP-1 demoted to SHOULD (Appendix A.1); R-POS-7 and P-RET-1 relabelled "Delivery-layer obligation (binding-defined)", deliberately unregistered, chartered in §12. Process guard adopted (ADR-0035): deferred options require a signed working-group row before promotion; registered-requirement removal likewise.
+- Security restructure ratified: transport-security MUSTs (former S-TLS-1/S-AUTH-1) moved to deployment/binding scope; producer security rules (S-AUTH-2, S-AUTHZ-1/2) retained. P-ORD-6 partition alignment demoted to SHOULD/advisory.
+- Appendix A rebuilt as a consumer parse pipeline (SHOULD-ceiling); Appendix B.4 Kafka consumption guidance added; conformance scenarios extended T-15..T-21b.
+- Register: 95 requirements, 37 matrix rows; §17 and §19.1 regenerated. Companion updates: ADR v0.2 (ADR-0026..0035, two supersessions), Glossary v1.1, schemas hardened to closed-world at wire 0.3, new `opencdc-trx-commit` schema, examples extended to 9 events.
 
 ---
 
