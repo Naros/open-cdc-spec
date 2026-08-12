@@ -1,21 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://opencdc.org/schemas/opencdc-heartbeat.schema.json",
-  "title": "OpenCDC HEARTBEAT data payload (Sections 10.1, 8.4.2)",
+  "$id": "https://opencdc.org/schemas/opencdc-trx-commit.schema.json",
+  "title": "OpenCDC TRX_COMMIT data payload (Section 10.5.3)",
   "type": "object",
   "properties": {
-    "source_lag_ms": {
+    "cdcxid": {
+      "type": "string"
+    },
+    "event_count": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
-    "capture_active": {
-      "type": "boolean"
-    },
-    "lsn_reset": {
-      "type": "boolean"
-    },
-    "sequence_reset": {
-      "type": "boolean"
+    "distribution": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1
+      }
     },
     "pos": {
       "type": "object",
@@ -38,12 +39,13 @@
         "lsn",
         "source_timestamp",
         "lsn_offset"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
-    "lsn_reset",
-    "sequence_reset"
+    "event_count",
+    "pos"
   ],
   "additionalProperties": false
 }
