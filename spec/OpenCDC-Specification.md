@@ -1876,7 +1876,7 @@ The production-deployment best practices formerly recorded here (schema-mismatch
 
 # 17. Normative Summary
 
-This summary lists the producer (and bilateral) conformance requirements. Conformance is capability-scoped: a producer satisfies the rules that apply to the capabilities it declares in STREAM_METADATA (ordering_scope, transaction_interleaving, transaction_boundaries, session_aware, schema_delivery, sequence_continuity, bidirectional, ddl_capture), not necessarily every rule in the document (see Section 19). Consumer obligations (C-* and consumer-side R-*) are non-normative and are defined as a consumer parse pipeline in Appendix A; they are not listed here. SHOULD requirements are register-only -- see the relevant section for the complete normative text.  
+This summary lists the producer (and bilateral) conformance requirements. Conformance is capability-scoped: a producer satisfies the rules that apply to the capabilities it declares in STREAM_METADATA (ordering_scope, transaction_interleaving, transaction_boundaries, session_aware, schema_delivery, sequence_continuity, bidirectional, ddl_capture), not necessarily every rule in the document (see Section 19). Consumer obligations (C-* and consumer-side R-*) are non-normative and are defined as a consumer parse pipeline in Appendix A; they are not listed here. SHOULD requirements are register-only -- see the relevant section for the complete normative text.
 
 - **P-ORD-1**
   - Requirement: Emit events in source commit order (grouped by transaction, in source commit sequence; cdctxorder within each)
