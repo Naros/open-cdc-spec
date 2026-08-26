@@ -1436,12 +1436,12 @@ Statement content is governed by the declared `ddl_capture` mode, and applies to
   "subject":        "FINANCE.ORDERS",
   "type":           "com.acme.cdc.ddl.ALTER",
   "dataschema":     "schema-FINANCE-ORDERS-v1",                   // pre-change schema; v2 (Section 4.2) follows this event
-  "time":           "2026-03-22T15:00:00.000Z",
+  "time":           "2026-03-22T13:55:00.000Z",
   "datacontenttype":"application/json",
   "cdcspecversion": "0.3",
   "cdcxid":         "1510528009.5.14.0001",
   "cdctxorder":     0,                                        // MUST for DDL; 0 = solitary DDL or first event in mixed transaction
-  "cdcpos":         "0000012C000005A1:1",
+  "cdcpos":         "0000012C000004C8:1",
   "data": {
     "table": { "catalog": "ORCL", "schema": "FINANCE", "name": "ORDERS" },
     "ddl": {
@@ -1449,8 +1449,8 @@ Statement content is governed by the declared `ddl_capture` mode, and applies to
       "statement_truncated": false         // true if DDL was too long to include fully
     },
     "pos": {
-      "lsn":             "0000012C000005A1",
-      "source_timestamp":"2026-03-22T15:00:00.000Z",
+      "lsn":             "0000012C000004C8",
+      "source_timestamp":"2026-03-22T13:55:00.000Z",
       "lsn_offset":      1,
       "native_position": "G-AQAAADIKBBBBB..."
     }
