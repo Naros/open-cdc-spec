@@ -2305,9 +2305,6 @@ The following scenarios are the minimum test suite for conformance validation. E
   - Pass Criterion: Producer emits an Oracle TRUNCATE event with a synthetic cdcxid (not a real Oracle transaction ID). The synthetic cdcxid is stable: replay of the same event carries the same synthetic cdcxid. Consumer deduplicates on (source, id) correctly, not on cdcxid alone. truncate_details shows cascade: "not_applicable" and sequence_reset: "not_applicable".
   - Use Case: Data fidelity; Non-transactional TRUNCATE identity
 
-OpenCDC Specification -- Draft v0.7.0 -- June 2026 -- OpenCDC Working Group
-
-
 - **T-15** (axis cell: `stream` + `none` -- the *single* profile)
   - Scenario: Marker-free completion by ordering
   - Pass Criterion: Stream declares `ordering_scope: "stream"`, `transaction_interleaving: "none"`, no `transaction_boundaries`. Consumer detects completion of each transaction via next-cdcxid or HEARTBEAT and applies atomically; no TRX_COMMIT events are present or required.
