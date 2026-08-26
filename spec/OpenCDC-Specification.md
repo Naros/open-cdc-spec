@@ -446,7 +446,7 @@ To ensure that partial implementations can interoperate, OpenCDC defines a Minim
 - **Stream Liveness**
   - Producer MUST: Emit HEARTBEAT during idle periods
 
-Consumer-side obligations for the minimum profile (accept/apply DML, cache schema, decode by logical_type, distinguish LOB null states, deduplicate, apply in cdctxorder, assemble by cdcxid, monitor HEARTBEAT) are specified as non-normative service-level guidance in Appendix A.
+Consumer-side obligations for the minimum profile (accept/apply DML, cache schema, decode by logical_type, distinguish LOB null states, deduplicate, apply in cdctxorder, assemble by cdcxid, monitor HEARTBEAT) are non-normative and are collected in Appendix A.
 
 Stretch features (UPSERT, TRUNCATE, SNAPSHOT, bidirectional sync loop prevention, partial UPDATE images, Observability fields) are RECOMMENDED but not required for minimum profile conformance.
 
@@ -1862,7 +1862,7 @@ This section states the security floor for an OpenCDC deployment and defers the 
 
 OpenCDC events may be used in two distinct operational modes that have different requirements for durability, replay, and data loss tolerance. Implementations MUST declare which mode(s) they support. A single deployment MAY operate in both modes simultaneously for different consumer types.
 
-> Consumer-side obligations for Durable and Ephemeral modes (resume-position persistence, idempotent apply, gap detection, schema-before-decode, gap tolerance) are specified as non-normative service-level guidance in Appendix A.7/A.6/A.4/A.2/A.11.
+> Consumer-side obligations for Durable and Ephemeral modes (resume-position persistence, idempotent apply, gap detection, schema-before-decode, gap tolerance) are non-normative; see Appendix A.7/A.6/A.4/A.2/A.11.
 
 ## 15.1 Durable Mode
 
@@ -2199,7 +2199,7 @@ Conformance is **capability-scoped and self-asserted.** An implementation is a c
 
 Conformance is self-asserted in this revision. A working-group **Conformance Test Suite** that specifies exactly which parts of the specification a given producer satisfies is anticipated as future work; until it exists, the declared-capability statement above is the honest expression of what "conformant" means for a particular implementation.
 
-The consumer-side obligations needed to interoperate with a conformant producer (C-* and consumer R-* requirements) are defined, as non-normative service-level guidance, in Appendix A. An implementation that operates as both producer and consumer (e.g., a replication tool in bidirectional sync) is expected to satisfy the producer requirements for what it emits and to follow the Appendix A guidance for what it consumes.
+The consumer-side obligations needed to interoperate with a conformant producer (C-* and consumer R-* requirements) are non-normative and are defined in Appendix A. An implementation that operates as both producer and consumer (e.g., a replication tool in bidirectional sync) is expected to satisfy the producer requirements for what it emits and to follow the Appendix A guidance for what it consumes.
 
 Conformance with this specification additionally requires conformance with:
 
@@ -2213,7 +2213,7 @@ Conformance testing guidance: A conformant stream can be validated end-to-end us
 
 ## 19.1 Compliance Matrix
 
-This matrix lists producer (and bilateral) conformance requirements. Consumer-side obligations needed to interoperate at full fidelity are specified as non-normative service-level guidance in Appendix A (organized as a consumer parse pipeline). Requirements marked (SC) or (MC) apply only to the corresponding profile (Section 2.2a); the qualifier (BD) applies only to producers declaring `bidirectional: true`.
+This matrix lists producer (and bilateral) conformance requirements. Consumer-side obligations needed to interoperate at full fidelity are non-normative and appear in Appendix A, organized as a consumer parse pipeline. Requirements marked (SC) or (MC) apply only to the corresponding profile (Section 2.2a); the qualifier (BD) applies only to producers declaring `bidirectional: true`.
 
 **Bilateral rows and the Consumer column.** Three rows below retain a Consumer MUST (schema delivery before first DML, closed-world schema enforcement, payload-encoding semantics preservation). These rules define correct *interpretation of the wire contract itself* -- a party on either side that violates them misreads the format, not merely its own service level. Consumer MUST entries in this matrix exist to make conformance test suites meaningful: they define what a test harness verifies when exercising the consumer side of the contract. They are **not directives to real-world consumers** of OpenCDC streams, whose behavior remains service-level guidance per Appendix A and ADR-0025.
 
