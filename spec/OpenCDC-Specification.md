@@ -87,13 +87,13 @@ Status: Draft for Discussion
   - [19.2 Conformance Test Scenarios](#192-conformance-test-scenarios)
 - [Appendix A: Consumer Reference -- Reading and Parsing OpenCDC Streams (Informative)](#appendix-a-consumer-reference----reading-and-parsing-opencdc-streams-informative)
   - [A.0 Mental model: what a conformant producer guarantees you](#a0-mental-model-what-a-conformant-producer-guarantees-you)
-  - [A.1 Step 1 -- Connect and read STREAM_METADATA first](#a1-step-1----connect-and-read-stream_metadata-first)
-  - [A.2 Step 2 -- Acquire and cache the schema (OBJECT_METADATA)](#a2-step-2----acquire-and-cache-the-schema-object_metadata)
-  - [A.3 Step 3 -- Decode a single event](#a3-step-3----decode-a-single-event)
-  - [A.4 Step 4 -- Order and assemble](#a4-step-4----order-and-assemble)
-  - [A.5 Step 5 -- Detect transaction completion](#a5-step-5----detect-transaction-completion)
-  - [A.6 Step 6 -- Deduplicate and apply](#a6-step-6----deduplicate-and-apply)
-  - [A.7 Step 7 -- Replay, resume, and sequence continuity](#a7-step-7----replay-resume-and-sequence-continuity)
+  - [A.1 Connect and read STREAM_METADATA first](#a1-connect-and-read-stream_metadata-first)
+  - [A.2 Acquire and cache the schema (OBJECT_METADATA)](#a2-acquire-and-cache-the-schema-object_metadata)
+  - [A.3 Decode a single event](#a3-decode-a-single-event)
+  - [A.4 Order and assemble](#a4-order-and-assemble)
+  - [A.5 Detect transaction completion](#a5-detect-transaction-completion)
+  - [A.6 Deduplicate and apply](#a6-deduplicate-and-apply)
+  - [A.7 Replay, resume, and sequence continuity](#a7-replay-resume-and-sequence-continuity)
   - [A.8 Special events](#a8-special-events)
   - [A.9 Bidirectional consumers and loop prevention](#a9-bidirectional-consumers-and-loop-prevention)
   - [A.10 Multi-channel transaction completeness (TRX_COMMIT)](#a10-multi-channel-transaction-completeness-trx_commit)
@@ -2398,7 +2398,7 @@ A conformant producer emits a **self-describing stream**: everything needed to d
 
 **Two service levels.** A *full-fidelity consumer* (replication, lakehouse, same-engine target) honors every MUST below. A *minimum-viable consumer* (coarse analytics, alerting) may follow the shorter path in A.12.5.
 
-## A.1 Step 1 -- Connect and read STREAM_METADATA first
+## A.1 Connect and read STREAM_METADATA first
 
 Read STREAM_METADATA **before processing any data event**, and let its declared axes drive every later step. Depending on topology, STREAM_METADATA arrives as the first event of your session (`session_aware: true`), or out-of-band on a control channel / transport metadata / the first record of each channel (`session_aware: false`). Re-read it on reconnect.
 
@@ -2410,7 +2410,7 @@ Axes you must read and act on:
 - *(v0.7.0 adds `ordering_scope`, `transaction_interleaving`, `transaction_boundaries`, `transaction_visibility`, `bidirectional`, `ddl_capture` -- see A.5, A.8, A.10, A.12.1.)*
 - **Consume conservatively (C-COMP-1):** the ordering axes describe the producer's emitted sequence, not what your transport delivered. Unless you receive events directly from the producer, or your deployment operates under a claimed transport binding profile (future work; Section 12) that covers delivery of these guarantees, you SHOULD treat the delivered guarantees as `ordering_scope: "channel"` with `transaction_interleaving: "possible"` regardless of the declaration, and you SHOULD NOT upgrade based on observed transport topology alone. For Kafka transports, see Appendix B.4.
 
-## A.2 Step 2 -- Acquire and cache the schema (OBJECT_METADATA)
+## A.2 Acquire and cache the schema (OBJECT_METADATA)
 
 Every DML/DDL event references a schema by its `dataschema`. You SHOULD resolve that reference from your cache before decoding the event; decoding without the governing schema forfeits type fidelity. One exception: a `ddl.CREATE` whose `dataschema` names an OBJECT_METADATA you have not yet received is a forward reference (Section 9.1). You SHOULD buffer the CREATE until the named event arrives rather than treating the unresolved reference as an error; it is guaranteed to precede that subject's first DML.
 
@@ -2422,7 +2422,7 @@ Every DML/DDL event references a schema by its `dataschema`. You SHOULD resolve 
 - **Control-channel race (multi-channel):** the producer publishes a new OBJECT_METADATA to the control channel *before* any data event references it, but you poll the two channels independently -- a data event carrying an unknown `dataschema` can arrive before your control-channel poll delivers the new version. This is a race, not corruption: pause consumption of that channel/partition, re-poll the control channel until the referenced schema version arrives, then resume. Do not decode-and-guess and do not drop the event.
 - From OBJECT_METADATA you also cache the table's **`primary_key`** (your per-row identity key, A.4) and the column descriptors used in A.3.
 
-## A.3 Step 3 -- Decode a single event
+## A.3 Decode a single event
 
 Resolve fields against the cached schema. Decode column values by **`logical_type`**, never by `source_type` *(C-TYPE-1: `logical_type` is authoritative for decoding; do not use `source_type`)*, applying the wire-encoding rules for that logical type.
 
@@ -2438,7 +2438,7 @@ Validation / closed-world:
 - **C-VAL-3:** SHOULD verify CloudEvents envelope compliance (`specversion`, required fields).
 - **Integrity (optional, consumer-side):** you MAY compute your own hash of a received payload -- or of a cached schema -- to detect corruption or to compare redelivered events. Scope and algorithm are your choice; OpenCDC does not define a producer-supplied content hash. If a producer happens to emit an opaque `checksum`, relying on it requires out-of-band agreement on what it covers.
 
-## A.4 Step 4 -- Order and assemble
+## A.4 Order and assemble
 
 - **C-ORD-2:** within a transaction, apply events in `cdctxorder` sequence (0,1,2,...). Out-of-order application within a transaction is incorrect.
 - Cross-table / total order: the CloudEvents **`sequence`** field yields a global order only where the producer declares `ordering_scope: "stream"` and you receive that sequence as one ordered channel (A.1, Section 3.3); otherwise you SHOULD NOT attempt a cross-channel order from `sequence` values *(C-SEQ-1: use `cdctxorder` for intra-transaction order, `sequence` for cross-table total order, `(pos.lsn, pos.lsn_offset)` for replay positioning)*.
@@ -2447,14 +2447,14 @@ Validation / closed-world:
 - **C-KEY-1 (per-row key):** key rows on the table's **`primary_key`** (from OBJECT_METADATA), not on `partitionkey`. `partitionkey`, when present, is an advisory routing hint you MAY ignore. Where the source exposes no primary key, fall back to the full row image for identity and the CloudEvents `sequence` for ordering.
 - **Gap handling:** `cdctxorder` gaps are a producer error; on detecting a gap, surface an error and do not apply subsequent events until resolved.
 
-## A.5 Step 5 -- Detect transaction completion
+## A.5 Detect transaction completion
 
 How you know a transaction is complete depends on the emission declaration **considered against your delivery context, conservatively** (C-COMP-1 -- see A.1), not the raw declaration alone:
 - **Effective "stream"/"none" (single profile):** a transaction is complete when you observe (a) the first event of the next `cdcxid`, or (b) a HEARTBEAT after the transaction. This inference is reliable only when "none" interleaving actually holds at your point of consumption -- i.e., the emission declaration is "none" AND your delivery context preserves it (direct delivery, or a claimed binding profile covering it).
 - **Effective "possible" (including any delivery context you cannot confirm, which you SHOULD treat as "possible"):** the ordering inference above is **not** reliable. Composed `"channel"` scope with `"none"` interleaving retains per-channel completion by ordering; it is the interleaving axis, not the scope axis, that removes the inference. Use an explicit completeness marker -- the **TRX_COMMIT** event and its `event_count` (v0.7.0; see A.10). Subscribe to the HEARTBEAT/marker channel(s) the producer declared in STREAM_METADATA.
 - Track time since the last HEARTBEAT to distinguish an idle stream from a broken one (A.11) *(C-HB-1, SHOULD)*.
 
-## A.6 Step 6 -- Deduplicate and apply
+## A.6 Deduplicate and apply
 
 At-least-once delivery means any event may arrive more than once.
 - **C-IDEM-1/C-IDEM-2:** the deduplication key is the tuple **`(source, id)`**, for every event type including `ddl.*` -- re-applying a replayed DDL event fails destructively (the column already exists), so DDL passes through the same dedup gate as DML; an apply error on a DDL event is frequently the signature of a missed dedup, not a producer defect. Persist applied keys for a lookback window at least as long as the transport's maximum redelivery window; detect and **silently discard** duplicates (a duplicate is an expected artifact, not an error).
@@ -2477,7 +2477,7 @@ Partial UPDATE images (`changed_columns`, Section 5.4) shift cost from the captu
 
 **Guidance.** Batching-sensitive consumers may prefer sources configured to emit full row images where source capture cost permits. The choice of full vs. partial images is a producer configuration decision with consumer-side consequences; deployments should make it deliberately, with the write-path cost of the consuming side in view.
 
-## A.7 Step 7 -- Replay, resume, and sequence continuity
+## A.7 Replay, resume, and sequence continuity
 
 - **`cdcpos`** is your primary, opaque resume handle -- persist it after each successfully applied event; do not parse it *(R-POS-1 consumer side)*. `(pos.lsn, pos.lsn_offset)` is the structured equivalent for ordering/gap logic.
 - **Session-aware resume (R-POS-2):** provide your saved `cdcpos` to the producer on resume; the producer replays from at/before the schema event preceding it. **Sessionless / multi-channel:** replay is consumer-driven -- seek the transport offset per channel; resolve each table's schema before applying its DML.
