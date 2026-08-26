@@ -60,6 +60,7 @@ Status: Draft for Discussion
   - [8.4 Sequence Discontinuity -- Producer Obligations and Consumer Handling](#84-sequence-discontinuity----producer-obligations-and-consumer-handling)
 - [9. DDL Events](#9-ddl-events)
   - [9.1 DDL Payload Structure](#91-ddl-payload-structure)
+  - [9.2 dataschema on DDL Events](#92-dataschema-on-ddl-events)
 - [10. Lifecycle Events](#10-lifecycle-events)
   - [10.1 HEARTBEAT](#101-heartbeat)
   - [10.2 TRUNCATE](#102-truncate)
@@ -199,7 +200,7 @@ This section shows the minimum viable OpenCDC stream for a single-table producer
 {
   "specversion":    "1.1",
   "id":             "stream-meta-001",
-  "source":         "//db-prod.acme.com/sales",
+  "source":         "//db-prod.acme.com/salesdb/sales",
   "type":           "com.acme.cdc.meta.STREAM_METADATA",
   "time":           "2026-05-03T10:00:00.000Z",
   "datacontenttype":"application/json",
@@ -208,7 +209,7 @@ This section shows the minimum viable OpenCDC stream for a single-table producer
     "producer":        "Acme CDC Tool 1.0",
     "opencdc_version": "0.3",
     "source_db":       "PostgreSQL 17",
-    "tables":          ["sales.ORDERS"],
+    "tables":          ["sales.orders"],
     "ordering_scope":            "stream",
     "transaction_interleaving":  "none",
     "sequence_continuity":       "guaranteed",
@@ -220,35 +221,35 @@ This section shows the minimum viable OpenCDC stream for a single-table producer
 // -- Step 2: Schema event (emitted once before first DML for this table) --
 {
   "specversion":    "1.1",
-  "id":             "schema-ORDERS-v1",
-  "source":         "//db-prod.acme.com/sales",
-  "subject":        "sales.ORDERS",
+  "id":             "schema-sales-orders-v1",
+  "source":         "//db-prod.acme.com/salesdb/sales",
+  "subject":        "sales.orders",
   "type":           "com.acme.cdc.meta.OBJECT_METADATA",
   "time":           "2026-05-03T10:00:00.000Z",
   "datacontenttype":"application/json",
   "cdcspecversion": "0.3",
   "cdcpos":         "0000000000A1B2C3:0",
   "data": {
-    "table": { "schema": "sales", "name": "ORDERS" },
+    "table": { "schema": "sales", "name": "orders" },
     "schema_version": 1,
-    "primary_key": ["ORDER_ID"],
+    "primary_key": ["order_id"],
     "columns": [
-      { "name":"ORDER_ID", "ordinal":1, "source_type":"INTEGER",
+      { "name":"order_id", "ordinal":1, "source_type":"INTEGER",
         "logical_type":"INT32",   "parameters":{}, "nullable":false, "pk":true  },
-      { "name":"STATUS",   "ordinal":2, "source_type":"VARCHAR(20)",
+      { "name":"status",   "ordinal":2, "source_type":"VARCHAR(20)",
         "logical_type":"STRING",  "parameters":{"max_length":20,"length_semantics":"CHAR"}, "nullable":false, "pk":false },
-      { "name":"AMOUNT",   "ordinal":3, "source_type":"DECIMAL(10,2)",
+      { "name":"amount",   "ordinal":3, "source_type":"DECIMAL(10,2)",
         "logical_type":"DECIMAL", "parameters":{"precision":10,"scale":2}, "nullable":false, "pk":false }
     ],
     "json_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "$id": "urn:opencdc:schema:sales.ORDERS:v1",
+      "$id": "urn:opencdc:schema:sales.orders:v1",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "ORDER_ID": { "oneOf": [{"type":"integer"},{"type":"null"}] },
-        "STATUS":   { "oneOf": [{"type":"string"}, {"type":"null"}] },
-        "AMOUNT":   { "oneOf": [{"type":"string"}, {"type":"null"}] }
+        "order_id": { "oneOf": [{"type":"integer"},{"type":"null"}] },
+        "status":   { "oneOf": [{"type":"string"}, {"type":"null"}] },
+        "amount":   { "oneOf": [{"type":"string"}, {"type":"null"}] }
       }
     }
   }
@@ -257,25 +258,25 @@ This section shows the minimum viable OpenCDC stream for a single-table producer
 {
   "specversion":    "1.1",
   "id":             "7f3a2b10-e14c-4d8a-9f62-3c1d8e4b5a09",
-  "source":         "//db-prod.acme.com/sales",
-  "subject":        "sales.ORDERS",
+  "source":         "//db-prod.acme.com/salesdb/sales",
+  "subject":        "sales.orders",
   "type":           "com.acme.cdc.dml.INSERT",
   "time":           "2026-05-03T10:01:00.000Z",
   "datacontenttype":"application/json",
-  "dataschema":     "schema-ORDERS-v1",
+  "dataschema":     "schema-sales-orders-v1",
   "cdcspecversion": "0.3",
   "cdcxid":         "txn-00000001",
   "cdctxorder":     0,
   "cdcpos":         "0000000100000001:0",
   "partitionkey":   "42",
   "data": {
-    "table":       { "schema": "sales", "name": "ORDERS" },
-    "primary_key": ["ORDER_ID"],
+    "table":       { "schema": "sales", "name": "orders" },
+    "primary_key": ["order_id"],
     "before":      null,
     "after": {
-      "ORDER_ID": 42,
-      "STATUS":   "PENDING",
-      "AMOUNT":   "199.99"
+      "order_id": 42,
+      "status":   "PENDING",
+      "amount":   "199.99"
     },
     "_null_columns":  [],
     "_lob_overflow":  [],
@@ -292,8 +293,8 @@ This section shows the minimum viable OpenCDC stream for a single-table producer
 **What a Conformant Consumer Does With This**
 
 1. Receive STREAM_METADATA. Cache producer identity, table list, and heartbeat interval.
-2. Receive OBJECT_METADATA "schema-ORDERS-v1". Cache columns[] keyed by name. Note schema_version=1.
-3. Receive INSERT event. Verify dataschema="schema-ORDERS-v1" is cached. Resolve logical_type for each column from cache: ORDER_ID=INT32 (JSON integer), STATUS=STRING (UTF-8), AMOUNT=DECIMAL (exact decimal string).
+2. Receive OBJECT_METADATA "schema-sales-orders-v1". Cache columns[] keyed by name. Note schema_version=1.
+3. Receive INSERT event. Verify dataschema="schema-sales-orders-v1" is cached. Resolve logical_type for each column from cache: order_id=INT32 (JSON integer), status=STRING (UTF-8), amount=DECIMAL (exact decimal string).
 4. Apply INSERT. Acknowledge pos.lsn + pos.lsn_offset as the structured resume position. Save cdcpos as the primary resume handle.
 5. On reconnect: producer re-emits STREAM_METADATA and current OBJECT_METADATA before resuming data delivery (see Section 6).
 
@@ -463,7 +464,7 @@ OpenCDC adopts CloudEvents v1.1 as its mandatory envelope specification. Every O
 
 - **id**
   - Required: MUST
-  - Value / Constraint: UUID v4 MUST be used for DML and DDL events, where (source, id) is the primary deduplication key. Lifecycle events (OBJECT_METADATA, STREAM_METADATA, HEARTBEAT) MUST carry a stream-unique, replay-stable id but MAY use a structured descriptive form (e.g., schema-ORDERS-v1) when that form is more operationally useful than an opaque UUID. Regardless of form, id MUST be stable across replay of the same event.
+  - Value / Constraint: UUID v4 MUST be used for DML and DDL events, where (source, id) is the primary deduplication key. Lifecycle events (OBJECT_METADATA, STREAM_METADATA, HEARTBEAT) MUST carry a stream-unique, replay-stable id but MAY use a structured descriptive form (e.g., schema-FINANCE-ORDERS-v2) when that form is more operationally useful than an opaque UUID. Regardless of form, id MUST be stable across replay of the same event.
 
 - **source**
   - Required: MUST
@@ -603,7 +604,7 @@ Loop suppression MUST be implemented by the producer, not the consumer. A consum
   "type":            "com.acme.cdc.dml.UPDATE",
   "time":            "2026-03-22T14:23:01.000Z",               // commit time
   "datacontenttype": "application/json",
-  "dataschema":      "schema-ORDERS-v2",                       // OBJECT_METADATA id
+  "dataschema":      "schema-FINANCE-ORDERS-v2",                   // OBJECT_METADATA id
   // -- OpenCDC extension attributes --
   "cdcspecversion":  "0.3",
   "cdcxid":          "1510528009.5.13.7625",
@@ -643,12 +644,12 @@ When `session_aware` is true, the producer MUST enforce the following ordering p
 ```
 MANDATORY STREAM ORDERING -- SESSION-AWARE PRODUCER (per consumer session):
   [1]  STREAM_METADATA  (session-scoped: first event to this consumer -- NOT part of durable stream ordering)
-  [2]  OBJECT_METADATA  id:"schema-ORDERS-v1"      <- MUST precede [3]
-  [3]  INSERT           dataschema:"schema-ORDERS-v1"
-  [4]  UPDATE           dataschema:"schema-ORDERS-v1"
+  [2]  OBJECT_METADATA  id:"schema-FINANCE-ORDERS-v1"      <- MUST precede [3]
+  [3]  INSERT           dataschema:"schema-FINANCE-ORDERS-v1"
+  [4]  UPDATE           dataschema:"schema-FINANCE-ORDERS-v1"
   [5]  DDL ALTER        (adds TRACKING_CODE column)
-  [6]  OBJECT_METADATA  id:"schema-ORDERS-v2"      <- MUST precede [7]; MUST follow [5]
-  [7]  INSERT           dataschema:"schema-ORDERS-v2"
+  [6]  OBJECT_METADATA  id:"schema-FINANCE-ORDERS-v2"      <- MUST precede [7]; MUST follow [5]
+  [7]  INSERT           dataschema:"schema-FINANCE-ORDERS-v2"
   [8]  HEARTBEAT        (no schema ref required)
 
   VIOLATION: emitting [3] before [2] -> non-conformant producer
@@ -698,7 +699,7 @@ The OBJECT_METADATA event carries the complete column descriptor block. Its stru
 ```
 {
   "specversion":    "1.1",
-  "id":             "schema-FIN-ORDERS-v2",         // DML dataschema references this id
+  "id":             "schema-FINANCE-ORDERS-v2",         // DML dataschema references this id
   "source":         "//oracle-prod.acme.com/ORCL/FINANCE",
   "subject":        "FINANCE.ORDERS",
   "type":           "com.acme.cdc.meta.OBJECT_METADATA",
@@ -1043,9 +1044,10 @@ When changed_columns is present: columns absent from before/after are UNCHANGED 
 
 ```
 {
-  "specversion": "1.1", "id": "evt-001", "type": "com.acme.cdc.dml.INSERT",
-  "source": "//oracle-prod/ORCL/FINANCE", "subject": "FINANCE.ORDERS",
-  "dataschema": "schema-FIN-ORDERS-v2", "cdcspecversion":"0.3",
+  "specversion": "1.1", "id": "2ce7b94d-1210-4c54-a55a-43231db3160e", "type": "com.acme.cdc.dml.INSERT",
+  "source": "//oracle-prod.acme.com/ORCL/FINANCE", "subject": "FINANCE.ORDERS",
+  "time": "2026-05-03T10:00:59.200Z", "datacontenttype": "application/json",
+  "dataschema": "schema-FINANCE-ORDERS-v2", "cdcspecversion":"0.3",
   "cdcxid": "txn-000001", "cdctxorder": 0, "cdcpos": "000001:0",
   "data": {
     "table":       { "catalog":"ORCL", "schema":"FINANCE", "name":"ORDERS" },
@@ -1069,9 +1071,10 @@ When changed_columns is present: columns absent from before/after are UNCHANGED 
 
 ```
 {
-  "specversion": "1.1", "id": "evt-002", "type": "com.acme.cdc.dml.UPDATE",
-  "source": "//oracle-prod/ORCL/FINANCE", "subject": "FINANCE.ORDERS",
-  "dataschema": "schema-FIN-ORDERS-v2", "cdcspecversion":"0.3",
+  "specversion": "1.1", "id": "0b93eb51-dfca-42f3-996f-68c41bbe39bc", "type": "com.acme.cdc.dml.UPDATE",
+  "source": "//oracle-prod.acme.com/ORCL/FINANCE", "subject": "FINANCE.ORDERS",
+  "time": "2026-05-03T10:05:00.200Z", "datacontenttype": "application/json",
+  "dataschema": "schema-FINANCE-ORDERS-v2", "cdcspecversion":"0.3",
   "cdcxid": "txn-000002", "cdctxorder": 0, "cdcpos": "000002:0",
   "data": {
     "table":           { "catalog":"ORCL", "schema":"FINANCE", "name":"ORDERS" },
@@ -1098,8 +1101,10 @@ When changed_columns is present: columns absent from before/after are UNCHANGED 
 
 ```
 {
-  "specversion": "1.1", "id": "evt-003", "type": "com.acme.cdc.dml.DELETE",
-  "dataschema": "schema-FIN-ORDERS-v2", "cdcspecversion":"0.3",
+  "specversion": "1.1", "id": "249df3c7-17b5-400a-9e55-02dc36a5cf59", "type": "com.acme.cdc.dml.DELETE",
+  "source": "//oracle-prod.acme.com/ORCL/FINANCE", "subject": "FINANCE.ORDERS",
+  "time": "2026-05-03T10:10:00.200Z", "datacontenttype": "application/json",
+  "dataschema": "schema-FINANCE-ORDERS-v2", "cdcspecversion":"0.3",
   "cdcxid": "txn-000003", "cdctxorder": 0, "cdcpos": "000003:0",
   "data": {
     "table":       { "catalog":"ORCL", "schema":"FINANCE", "name":"ORDERS" },
@@ -1417,14 +1422,20 @@ A producer MUST NOT emit a `ddl.*` event for a change that did not occur as a so
 
 ## 9.1 DDL Payload Structure
 
+A DDL event uses the standard CloudEvents envelope (Section 3.1). Its `data` payload carries the table identity, a `ddl` object whose contents depend on the declared `ddl_capture` mode, and the position object (Section 8.1).
+
+Statement content is governed by the declared `ddl_capture` mode, and applies to every DDL event a producer emits in any mode (P-DDL-2). Under `"verbatim"`, `ddl.statement` MUST carry the verbatim source DDL text, never normalized or reconstructed; `statement_truncated` marks text too long to include fully. Under `"structural"`, the `ddl` object MUST be empty: `statement` and `statement_truncated` MUST be omitted, and synthesized or reconstructed SQL presented as a statement is non-conformant. Under `"none"`, an opportunistically emitted DDL event MUST take one of these two shapes: if it carries `statement`, that text MUST be verbatim. The `ddl` object is closed-world in every mode; no other members are defined.
+
+**Example -- `ddl_capture: "verbatim"`.** The `statement` member is present because the source exposes statement text. Under `"structural"` the `ddl` object is empty (P-DDL-2).
+
 ```
 {
   "specversion":    "1.1",
-  "id":             "a1b2c3d4-0000-0000-0000-000000000099",
+  "id":             "4f433f2f-a020-40e3-92d4-6de4d42aa302",
   "source":         "//oracle-prod.acme.com/ORCL/FINANCE",
   "subject":        "FINANCE.ORDERS",
   "type":           "com.acme.cdc.ddl.ALTER",
-  "dataschema":     "schema-FINANCE-ORDERS-v3",
+  "dataschema":     "schema-FINANCE-ORDERS-v1",                   // pre-change schema; v2 (Section 4.2) follows this event
   "time":           "2026-03-22T15:00:00.000Z",
   "datacontenttype":"application/json",
   "cdcspecversion": "0.3",
@@ -1447,13 +1458,11 @@ A producer MUST NOT emit a `ddl.*` event for a change that did not occur as a so
 }
 ```
 
-Statement content is governed by the declared `ddl_capture` mode, and applies to every DDL event a producer emits in any mode (P-DDL-2). Under `"verbatim"`, `ddl.statement` MUST carry the verbatim source DDL text, never normalized or reconstructed; `statement_truncated` marks text too long to include fully. Under `"structural"`, the `ddl` object MUST be empty: `statement` and `statement_truncated` MUST be omitted, and synthesized or reconstructed SQL presented as a statement is non-conformant. Under `"none"`, an opportunistically emitted DDL event MUST take one of these two shapes: if it carries `statement`, that text MUST be verbatim. The `ddl` object is closed-world in every mode; no other members are defined.
-
-For a `ddl.CREATE` naming a subject that no OBJECT_METADATA currently governs -- a newly captured table, or a re-created table whose prior incarnation was dropped -- `dataschema` is a *forward reference*: it carries the CloudEvents id of the next OBJECT_METADATA the producer will emit for that subject, and that OBJECT_METADATA MUST precede the subject's first DML event. Under `ordering_scope: "channel"` the CREATE and its governing OBJECT_METADATA MUST be emitted on the same emission channel. This is the only case in which `dataschema` names an event the consumer has not yet received; in every other case it names the most recently emitted OBJECT_METADATA for the table (Section 3.1).
-
 This DDL event changes the table's emission schema, so a new OBJECT_METADATA event (schema_version incremented) MUST follow it and precede the next DML event for FINANCE.ORDERS (Section 4.1). A DDL event that does not change the emission schema does not trigger OBJECT_METADATA re-emission and MUST NOT increment schema_version.
 
-> This example illustrates `ddl_capture: "verbatim"`: the `statement` member is present because the source exposes statement text. Under `"structural"` the `ddl` object is empty (P-DDL-2).
+## 9.2 dataschema on DDL Events
+
+For a `ddl.CREATE` naming a subject that no OBJECT_METADATA currently governs -- a newly captured table, or a re-created table whose prior incarnation was dropped -- `dataschema` is a *forward reference*: it carries the CloudEvents id of the next OBJECT_METADATA the producer will emit for that subject, and that OBJECT_METADATA MUST precede the subject's first DML event. Under `ordering_scope: "channel"` the CREATE and its governing OBJECT_METADATA MUST be emitted on the same emission channel. This is the only case in which `dataschema` names an event the consumer has not yet received; in every other case it names the most recently emitted OBJECT_METADATA for the table (Section 3.1).
 
 # 10. Lifecycle Events
 
@@ -1518,23 +1527,23 @@ PostgreSQL and certain other engines support a single TRUNCATE statement that ex
 TRUNCATE events carry the standard DML payload envelope fields. primary_key MUST be populated. before and after MUST both be null. _null_columns and _lob_overflow MUST be present and MUST be empty arrays (P-TRUNC-1). The pos object MUST be populated per Section 8.1. The optional truncate_details object (Section 10.2.5) MAY be present when the producer can observe execution-time semantics from the source engine.
 
 ```
-// -- PostgreSQL: TRUNCATE FINANCE.AUDIT_LOG CASCADE RESTART IDENTITY; --
+// -- PostgreSQL: TRUNCATE finance.audit_log CASCADE RESTART IDENTITY; --
 {
   "specversion":    "1.1",
-  "id":             "d4e5f6a7-0000-0000-0000-000000000042",
-  "source":         "//pg-prod.acme.com/sales",
-  "subject":        "FINANCE.AUDIT_LOG",
+  "id":             "0bc10ef8-9aa8-4f5d-8809-725879776653",
+  "source":         "//pg-prod.acme.com/salesdb/finance",
+  "subject":        "finance.audit_log",
   "type":           "com.acme.cdc.dml.TRUNCATE",
   "time":           "2026-05-10T09:00:00.000Z",
   "datacontenttype":"application/json",
-  "dataschema":     "schema-AUDIT-LOG-v1",
+  "dataschema":     "schema-finance-audit_log-v1",
   "cdcspecversion": "0.3",
   "cdcxid":         "txn-00441820",
   "cdctxorder":     0,
   "cdcpos":         "0000001A000007B2:0",
   "data": {
-    "table":         { "catalog": "sales", "schema": "FINANCE", "name": "AUDIT_LOG" },
-    "primary_key":   ["LOG_ID"],
+    "table":         { "catalog": "salesdb", "schema": "finance", "name": "audit_log" },
+    "primary_key":   ["log_id"],
     "before":        null,
     "after":         null,
     "_null_columns": [],
@@ -1558,13 +1567,13 @@ TRUNCATE events carry the standard DML payload envelope fields. primary_key MUST
 // -- Oracle: TRUNCATE TABLE FINANCE.AUDIT_LOG; (non-transactional, synthetic cdcxid) --
 {
   "specversion":    "1.1",
-  "id":             "a1b2c3d4-0000-0000-0000-000000000099",
+  "id":             "207b925e-3490-47cc-82f1-ac56276db371",
   "source":         "//oracle-prod.acme.com/ORCL/FINANCE",
   "subject":        "FINANCE.AUDIT_LOG",
   "type":           "com.acme.cdc.dml.TRUNCATE",
   "time":           "2026-05-10T09:00:05.000Z",
   "datacontenttype":"application/json",
-  "dataschema":     "schema-AUDIT-LOG-v1",
+  "dataschema":     "schema-FINANCE-AUDIT_LOG-v1",
   "cdcspecversion": "0.3",
   "cdcxid":         "truncate:FINANCE.AUDIT_LOG:0000001A00000900",
   "cdctxorder":     0,
@@ -1798,9 +1807,13 @@ OpenCDC defines optional fields to support distributed tracing and event correla
 // DML event with observability fields:
 {
   "specversion":    "1.1",
-  "id":             "7f3a2b10-...",
+  "id":             "7ca41f1f-6617-4008-9106-c557082c1085",
+  "source":         "//oracle-prod.acme.com/ORCL/FINANCE",
+  "subject":        "FINANCE.ORDERS",
   "type":           "com.acme.cdc.dml.INSERT",
-  "dataschema":     "schema-ORDERS-v2",
+  "time":           "2026-05-03T10:00:59.200Z",
+  "datacontenttype":"application/json",
+  "dataschema":     "schema-FINANCE-ORDERS-v2",
   "cdcspecversion": "0.3",
   "cdcxid":         "txn-001",
   "cdcpos":         "000001:0",
