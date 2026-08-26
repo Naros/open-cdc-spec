@@ -880,7 +880,7 @@ The DML event's dataschema CloudEvents field MUST still reference the CloudEvent
 
 Note: The _schema embedding does not violate the Section 4.1 values-only constraint on before/after — it is a separate, optional top-level key alongside those fields, not within them.
 
-Key use cases: stateless consumption where the consumer process has no persistent schema cache (e.g., serverless functions, ephemeral containers); consumers that join a stream mid-session without access to start-of-connection OBJECT_METADATA events; consumers operating in Ephemeral Mode (Section 15.2); **multi-channel / distributed deployments where consumers read individual topics and cannot rely on in-stream schema ordering**. Wire overhead of embedding _schema in every DML event is significant for wide tables -- producers SHOULD document per-event overhead. A row for _schema MUST be added to the Section 5.2 Common DML Payload Fields table as: field _schema, Conditional, Present only when schema_on_each_event: true; contains full OBJECT_METADATA data payload.
+Key use cases: stateless consumption where the consumer process has no persistent schema cache (e.g., serverless functions, ephemeral containers); consumers that join a stream mid-session without access to start-of-connection OBJECT_METADATA events; consumers operating in Ephemeral Mode (Section 15.2); **multi-channel / distributed deployments where consumers read individual topics and cannot rely on in-stream schema ordering**. Wire overhead of embedding _schema in every DML event is significant for wide tables -- producers SHOULD document per-event overhead.
 
 ### 4.5.4 Schema by Reference (OPTIONAL, default OFF)
 
@@ -929,6 +929,10 @@ Table identity MUST be split into discrete fields to accommodate heterogeneous s
 - **(absent column rule)**
   - Required: --
   - Description: C-DML-1: A column absent from a partial before/after image MUST be interpreted as unchanged -- not as null and not as deleted. This is a MUST for all consumers. Null values are signaled exclusively via _null_columns.
+
+- **_schema**
+  - Required: Conditional
+  - Description: Present only when schema_on_each_event is true (Section 4.5.3, P-SCHEMA-5). Carries the full OBJECT_METADATA data payload for this table: table, schema_version, primary_key, columns[], and json_schema. It is a top-level key in the DML data object, alongside before and after rather than within them.
 
 - **_null_columns**
   - Required: MUST
