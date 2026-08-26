@@ -14,17 +14,39 @@ text = open(SPEC, encoding="utf-8").read()
 reg = yaml.safe_load(open(YAMLP))
 reg_ids = [r["id"] for r in reg["requirements"]]
 
-def excise(txt, start, end):
-    """Remove the section from `start` up to `end` (or EOF when end is absent
-    or precedes start). Position-independent: works with the Change Log at
-    either end of the document."""
+def excise(txt, start, end, end_optional=False):
+    """Remove the span from `start` up to `end`, returning the rest.
+
+    Both markers are load-bearing, and a silent miss is worse than a crash:
+
+    * A missing `start` used to return `txt` unchanged. That leaves the
+      excised section's own text in the audit body, so every requirement ID
+      that section mentions looks "anchored" and check A passes while
+      checking the wrong document. Always a bug -- raise.
+
+    * A missing `end` truncates the body to everything before `start`,
+      dropping the appendices from the audit. That is legitimate in exactly
+      one case: the span runs to EOF because the Change Log sits at the end
+      of the document, so the marker that would follow it never appears
+      after it. That caller says so explicitly with end_optional=True.
+      Everyone else gets a raise.
+
+    Renaming or renumbering either marker heading (e.g. deleting Section 18)
+    will trip this deliberately.
+    """
     i = txt.find(start)
     if i < 0:
-        return txt
+        raise SystemExit(f"audit_register: start marker not found: {start!r}\n"
+                         f"  a heading was renamed or renumbered; update this call site")
     j = txt.find(end, i + len(start)) if end else -1
+    if j < 0 and not end_optional:
+        raise SystemExit(f"audit_register: end marker not found after {start!r}: {end!r}\n"
+                         f"  a heading was renamed or renumbered; update this call site")
     return txt[:i] + (txt[j:] if j >= 0 else "")
 
-body = excise(text, "# Change Log", "\n# Normative References")
+# end_optional: the Change Log is last in the document, so the following
+# marker is deliberately absent and the span runs to EOF.
+body = excise(text, "# Change Log", "\n# Normative References", end_optional=True)
 body = excise(body, "# 17. Normative Summary", "# 18. Design Decision Record")
 
 fail = False
