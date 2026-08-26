@@ -52,39 +52,36 @@ Status: Draft for Discussion
   - [6.3 LOB Handling Obligations](#63-lob-handling-obligations)
   - [6.4 Consumer Reconnection and Schema Availability](#64-consumer-reconnection-and-schema-availability)
   - [6.5 Interoperability Guarantee](#65-interoperability-guarantee)
-- [7. Consumer Contract](#7-consumer-contract)
-- [8. Position and Replay Semantics](#8-position-and-replay-semantics)
-  - [8.1 Structured Position Object](#81-structured-position-object)
-  - [8.2 Replay Rules](#82-replay-rules)
-  - [8.3 Transaction Boundaries](#83-transaction-boundaries)
-  - [8.4 Sequence Discontinuity -- Producer Obligations and Consumer Handling](#84-sequence-discontinuity----producer-obligations-and-consumer-handling)
-- [9. DDL Events](#9-ddl-events)
-  - [9.1 DDL Payload Structure](#91-ddl-payload-structure)
-  - [9.2 dataschema on DDL Events](#92-dataschema-on-ddl-events)
-- [10. Lifecycle Events](#10-lifecycle-events)
-  - [10.1 HEARTBEAT](#101-heartbeat)
-  - [10.2 TRUNCATE](#102-truncate)
-  - [10.3 SNAPSHOT (Initial Load)](#103-snapshot-initial-load)
-  - [10.4 STREAM_METADATA](#104-stream_metadata)
-  - [10.5 TRX_COMMIT (Transaction Completeness Marker)](#105-trx_commit-transaction-completeness-marker)
-- [11. Idempotency and Deduplication](#11-idempotency-and-deduplication)
-  - [11.1 Deduplication Key](#111-deduplication-key)
-  - [11.2 Producer Obligations for Idempotency](#112-producer-obligations-for-idempotency)
-- [12. Transport Bindings](#12-transport-bindings)
-- [13. Observability](#13-observability)
-  - [13.1 Trace Context](#131-trace-context)
-- [14. Security](#14-security)
-  - [14.1 Producer Security Rules (Normative)](#141-producer-security-rules-normative)
-  - [14.2 Security & Privacy Considerations (Informative)](#142-security--privacy-considerations-informative)
-- [15. Operational Modes](#15-operational-modes)
-  - [15.1 Durable Mode](#151-durable-mode)
-  - [15.2 Ephemeral Mode](#152-ephemeral-mode)
-- [16. Implementation Safety Notes](#16-implementation-safety-notes)
-- [17. Normative Summary](#17-normative-summary)
-- [18. Design Decision Record](#18-design-decision-record)
-- [19. Conformance](#19-conformance)
-  - [19.1 Compliance Matrix](#191-compliance-matrix)
-  - [19.2 Conformance Test Scenarios](#192-conformance-test-scenarios)
+- [7. Position and Replay Semantics](#7-position-and-replay-semantics)
+  - [7.1 Structured Position Object](#71-structured-position-object)
+  - [7.2 Replay Rules](#72-replay-rules)
+  - [7.3 Transaction Boundaries](#73-transaction-boundaries)
+  - [7.4 Sequence Discontinuity -- Producer Obligations and Consumer Handling](#74-sequence-discontinuity----producer-obligations-and-consumer-handling)
+- [8. DDL Events](#8-ddl-events)
+  - [8.1 DDL Payload Structure](#81-ddl-payload-structure)
+  - [8.2 dataschema on DDL Events](#82-dataschema-on-ddl-events)
+- [9. Lifecycle Events](#9-lifecycle-events)
+  - [9.1 HEARTBEAT](#91-heartbeat)
+  - [9.2 TRUNCATE](#92-truncate)
+  - [9.3 SNAPSHOT (Initial Load)](#93-snapshot-initial-load)
+  - [9.4 STREAM_METADATA](#94-stream_metadata)
+  - [9.5 TRX_COMMIT (Transaction Completeness Marker)](#95-trx_commit-transaction-completeness-marker)
+- [10. Idempotency and Deduplication](#10-idempotency-and-deduplication)
+  - [10.1 Deduplication Key](#101-deduplication-key)
+  - [10.2 Producer Obligations for Idempotency](#102-producer-obligations-for-idempotency)
+- [11. Transport Bindings](#11-transport-bindings)
+- [12. Observability](#12-observability)
+  - [12.1 Trace Context](#121-trace-context)
+- [13. Security](#13-security)
+  - [13.1 Producer Security Rules (Normative)](#131-producer-security-rules-normative)
+  - [13.2 Security & Privacy Considerations (Informative)](#132-security--privacy-considerations-informative)
+- [14. Operational Modes](#14-operational-modes)
+  - [14.1 Durable Mode](#141-durable-mode)
+  - [14.2 Ephemeral Mode](#142-ephemeral-mode)
+- [15. Normative Summary](#15-normative-summary)
+- [16. Conformance](#16-conformance)
+  - [16.1 Compliance Matrix](#161-compliance-matrix)
+  - [16.2 Conformance Test Scenarios](#162-conformance-test-scenarios)
 - [Appendix A: Consumer Reference -- Reading and Parsing OpenCDC Streams (Informative)](#appendix-a-consumer-reference----reading-and-parsing-opencdc-streams-informative)
   - [A.0 Mental model: what a conformant producer guarantees you](#a0-mental-model-what-a-conformant-producer-guarantees-you)
   - [A.1 Connect and read STREAM_METADATA first](#a1-connect-and-read-stream_metadata-first)
@@ -165,7 +162,7 @@ OpenCDC is defined across three documents with distinct roles. Understanding whi
   - Role: Informative
 
 **Producer-Focused Scope**
-This specification defines the mandatory and optional behaviors of OpenCDC *producers* -- the structure, semantics, ordering, type fidelity, and lifecycle of the events a producer emits. Its purpose is to guarantee that a consumer can read and interpret a producer's stream with full fidelity. It does not mandate how a consumer processes those events: different consumers legitimately require different service levels (for example, a financial replication target needs strict transactionality and exact type fidelity, while a reporting tool computing coarse rolling averages may not). Consumer behavior described in the body of this specification is therefore illustrative -- it shows how an object or guarantee is intended to be used and is not a conformance mandate. Consumer-directed requirements appear in this specification only as wire-interpretation rules and conformance-suite semantics (Section 19.1); all other consumer material is service-level guidance (Appendix A). The behaviors a consumer should adopt to achieve a given service level against a conformant producer are collected, as non-normative guidance, in Appendix A (Consumer Conformance, Obligations & Service-Level Guidance).
+This specification defines the mandatory and optional behaviors of OpenCDC *producers* -- the structure, semantics, ordering, type fidelity, and lifecycle of the events a producer emits. Its purpose is to guarantee that a consumer can read and interpret a producer's stream with full fidelity. It does not mandate how a consumer processes those events: different consumers legitimately require different service levels (for example, a financial replication target needs strict transactionality and exact type fidelity, while a reporting tool computing coarse rolling averages may not). Consumer behavior described in the body of this specification is therefore illustrative -- it shows how an object or guarantee is intended to be used and is not a conformance mandate. Consumer-directed requirements appear in this specification only as wire-interpretation rules and conformance-suite semantics (Section 16.1); all other consumer material is service-level guidance (Appendix A). The behaviors a consumer should adopt to achieve a given service level against a conformant producer are collected, as non-normative guidance, in Appendix A (Consumer Conformance, Obligations & Service-Level Guidance).
 
 **When Documents Appear to Conflict**
 If this Specification and the Type System Proposal appear to conflict on a type-related question, the Type System Proposal is authoritative. If they conflict on event structure or ordering, this Specification is authoritative. Any duplication of type rules in this Specification is non-normative. Implementers MUST treat the Type System Proposal as the definitive source for logical_type definitions, wire encoding rules, and type semantics. (C-TYPE-1)
@@ -176,7 +173,7 @@ The following terms are normative for this specification. Body text uses them in
 
 - **Producer** -- The changelog producer: the component that generates OpenCDC events from source changes and emits them as an ordered event sequence. The producer's declarations describe its emitted sequence; they do not describe the behavior of any delivery layer between emission and consumption.
 - **Delivery layer** -- Any transport, broker, intermediary, or routing infrastructure between producer emission and consumer receipt (for example: a message broker and its partitioning, an object store, a relay). The delivery layer may preserve or alter the guarantees of the emitted sequence. Whether it does, and how a deployment may establish that, are matters for future transport binding documents; this specification makes no claims about delivery-layer behavior (Section 2.2a).
-- **Consumer** -- Any system reading an OpenCDC stream. Consumer behavior is service-level guidance (Appendix A), except for the bilateral wire-interpretation rules retained in Section 19.1.
+- **Consumer** -- Any system reading an OpenCDC stream. Consumer behavior is service-level guidance (Appendix A), except for the bilateral wire-interpretation rules retained in Section 16.1.
 - **Emission schema** -- The columns[] descriptor set declared in the most recent OBJECT_METADATA event for a table. The emission schema governs the shape and typing of that table's DML payloads; it describes what the producer emits, which may differ from the source table's catalog definition (column filtering, masking, type mapping).
 - **Event** -- One CloudEvents v1.1 envelope carrying an OpenCDC payload: a DML change, DDL change, schema declaration, or lifecycle signal.
 - **Stream** -- The ordered set of events a producer emits for its captured tables, across one or more channels.
@@ -320,9 +317,9 @@ In multi-channel deployments, schema co-location means schema MUST be available 
 
 ## 2.2a Capability Axes, Authority, and Legal Combinations
 
-A self-describing stream declares its behavior through independent **capability axes** in STREAM_METADATA (Section 10.4). Each ordering axis is a guarantee about the **producer's emitted event sequence** -- what the changelog producer itself guarantees at the point of emission -- not about the stream as it may arrive after a delivery layer (see Terms and Definitions). What a consumer may assume about the *delivered* stream is outside the scope of these declarations; see the Scope of Declarations paragraph below and the consumer guidance in Appendix A.1.
+A self-describing stream declares its behavior through independent **capability axes** in STREAM_METADATA (Section 9.4). Each ordering axis is a guarantee about the **producer's emitted event sequence** -- what the changelog producer itself guarantees at the point of emission -- not about the stream as it may arrive after a delivery layer (see Terms and Definitions). What a consumer may assume about the *delivered* stream is outside the scope of these declarations; see the Scope of Declarations paragraph below and the consumer guidance in Appendix A.1.
 
-**Scope of Declarations (normative).** The capability axes declare what the producer's emitted sequence guarantees. This specification makes no claims about the properties of the stream as delivered through any transport, broker, or intermediary; whether emitted guarantees survive delivery, and how a deployment may establish that they do, is the province of future transport binding profiles (Section 12). A producer's conformance is determined entirely by what it emits and declares. Consumers are directed to Appendix A.1 (C-COMP-1) for conservative-consumption guidance in the absence of a claimed binding profile.
+**Scope of Declarations (normative).** The capability axes declare what the producer's emitted sequence guarantees. This specification makes no claims about the properties of the stream as delivered through any transport, broker, or intermediary; whether emitted guarantees survive delivery, and how a deployment may establish that they do, is the province of future transport binding profiles (Section 11). A producer's conformance is determined entirely by what it emits and declares. Consumers are directed to Appendix A.1 (C-COMP-1) for conservative-consumption guidance in the absence of a claimed binding profile.
 
 **The two ordering-guarantee axes.** Two axes are necessary for ordering and transaction completion; they are declared independently because they are independent facts:
 
@@ -330,28 +327,28 @@ A self-describing stream declares its behavior through independent **capability 
   - **`"stream"`**: the producer emits a single, totally ordered sequence of events. Every event has a definite position relative to every other event, across all tables: `[e1, e2, e3, e4, ...]`.
   - **`"channel"`**: the producer emits multiple ordered sequences (emission channels) -- for example, one per table. Order is guaranteed *within* each channel, but there is no defined order *between* events on different channels: `A:[a1, a2, a3]  B:[b1, b2]` -- whether `a2` precedes `b1` is not stated, and consumers build no logic on it.
 
-  The axis says nothing about how a transport partitions, merges, or delivers those sequences -- it describes only what the producer writes. This declaration determines the comparison domain for positions and `sequence` values (Sections 3.3, 8.2) and, with `transaction_interleaving`, the consumer's assembly strategy (Section 8.3, Appendix A.5). Declaration is mandatory (P-SCOPE-1). **When in doubt, declare `"channel"`** -- declare `"stream"` only where one total order across every event is structurally enforced, not merely observed (P-SCOPE-2).
+  The axis says nothing about how a transport partitions, merges, or delivers those sequences -- it describes only what the producer writes. This declaration determines the comparison domain for positions and `sequence` values (Sections 3.3, 8.2) and, with `transaction_interleaving`, the consumer's assembly strategy (Section 7.3, Appendix A.5). Declaration is mandatory (P-SCOPE-1). **When in doubt, declare `"channel"`** -- declare `"stream"` only where one total order across every event is structurally enforced, not merely observed (P-SCOPE-2).
 
 - **`transaction_interleaving`** (`"none"` | `"possible"`) -- *When the producer emits several transactions, do their events stay grouped?*
   - **`"none"`**: transactions are emitted whole, one after another. Every event of a transaction is emitted before the first event of the next transaction begins: `[T1, T1, T1] [T2, T2] [T3, ...]`.
   - **`"possible"`**: the producer may interleave -- events of different transactions can be mixed together in the emitted sequence: `[T1, T2, T1, T3, T2, ...]`. Each transaction's events remain internally ordered (`cdctxorder`), but transactions overlap.
 
-  The axis says nothing about when a source transaction commits, and nothing about delivery -- it describes only the order the producer writes events. This declaration determines the consumer's completion strategy (Section 8.3) and the producer's TRX_COMMIT marker obligations (Section 10.5, P-TRX-1, P-TRX-7). Declaration is mandatory (P-ILV-1). **When in doubt, declare `"possible"`** (P-ILV-2).
+  The axis says nothing about when a source transaction commits, and nothing about delivery -- it describes only the order the producer writes events. This declaration determines the consumer's completion strategy (Section 7.3) and the producer's TRX_COMMIT marker obligations (Section 9.5, P-TRX-1, P-TRX-7). Declaration is mandatory (P-ILV-1). **When in doubt, declare `"possible"`** (P-ILV-2).
 
 **Profiles (prose shorthand).** The names *single* and *multi* are retained in this document as defined profiles, not wire values: **single** means `ordering_scope: "stream"` with `transaction_interleaving: "none"`; **multi** means `ordering_scope: "channel"` with `transaction_interleaving: "possible"`. The topology-labeled subsections throughout this document (Single Channel Stream / Multi-Channel) refer to these profiles. The off-diagonal combinations are legal and declarable (see the matrix below); their obligations follow from the axes, not from the profile names.
 
-**Authority Table (normative).** Each axis has a determination authority -- whose knowledge and accountability stands behind the declared value. **Invariant: all axis values, whatever determines them, are emitted solely by the producer in STREAM_METADATA. Infrastructure components never author or modify declarations.** With the axes scoped to emission semantics, the ordering axes are determined by the producer's own emission behavior and its capture configuration; they no longer describe downstream routing. Where a producer's emission behavior is itself configurable (for example, routing performed inside the producing process before emission), the configured value MUST be emitted, the conservative value MUST be used when unconfigured, and configured values SHOULD be validated where observable. Delivery-layer facts are out of scope for these declarations and are addressed, as future work, by transport binding profiles (Section 12).
+**Authority Table (normative).** Each axis has a determination authority -- whose knowledge and accountability stands behind the declared value. **Invariant: all axis values, whatever determines them, are emitted solely by the producer in STREAM_METADATA. Infrastructure components never author or modify declarations.** With the axes scoped to emission semantics, the ordering axes are determined by the producer's own emission behavior and its capture configuration; they no longer describe downstream routing. Where a producer's emission behavior is itself configurable (for example, routing performed inside the producing process before emission), the configured value MUST be emitted, the conservative value MUST be used when unconfigured, and configured values SHOULD be validated where observable. Delivery-layer facts are out of scope for these declarations and are addressed, as future work, by transport binding profiles (Section 11).
 
 | Axis | Values | Plain-English meaning / contract declared | Authority |
 |---|---|---|---|
 | `ordering_scope` | `"stream"` \| `"channel"` | One global emission order across all events, or per-emission-channel order only | Producer-determined (emission) |
 | `transaction_interleaving` | `"none"` \| `"possible"` | Transactions arrive contiguously, or may intersperse (markers then required) | Producer-determined (emission) |
-| `transaction_boundaries` | `"none"` \| `"commit_all"` \| `"commit_multi_event"` | Which transactions receive TRX_COMMIT markers (Section 10.5). Only `"commit_all"` is valid under `transaction_interleaving: "possible"`; `"commit_multi_event"` is legal only under `"none"` | Deployment-conditional: required (non-`"none"`) exactly when `transaction_interleaving: "possible"` is declared, and optional otherwise; mode choice is source-informed |
-| `sequence_continuity` | `"guaranteed"` \| `"best_effort"` \| `"reset"` | Whether positions remain comparable across producer sessions (Section 8.4.1) | Producer-determined (emission), constrained by source position semantics and deployment topology |
-| `transaction_visibility` | `"committed_only"` (sole defined value) | Only durably committed transactions appear; reserved for future modes (Section 10.4) | Producer-determined (emission), constrained by the source change interface's visibility |
+| `transaction_boundaries` | `"none"` \| `"commit_all"` \| `"commit_multi_event"` | Which transactions receive TRX_COMMIT markers (Section 9.5). Only `"commit_all"` is valid under `transaction_interleaving: "possible"`; `"commit_multi_event"` is legal only under `"none"` | Deployment-conditional: required (non-`"none"`) exactly when `transaction_interleaving: "possible"` is declared, and optional otherwise; mode choice is source-informed |
+| `sequence_continuity` | `"guaranteed"` \| `"best_effort"` \| `"reset"` | Whether positions remain comparable across producer sessions (Section 7.4.1) | Producer-determined (emission), constrained by source position semantics and deployment topology |
+| `transaction_visibility` | `"committed_only"` (sole defined value) | Only durably committed transactions appear; reserved for future modes (Section 9.4) | Producer-determined (emission), constrained by the source change interface's visibility |
 | `session_aware` | `true` \| `false` (absent = `false`) | Whether the producer detects consumer connect/disconnect (connection-scoped delivery). **Not an ordering or topology axis.** | Architecture-determined (fixed by the product's transport model per delivery path) |
 | `bidirectional` | `true` \| `false` (absent = `false`) | This deployment is one leg of a two-way pair and will not re-emit changes back toward the counterpart they were applied from (Section 3.4, P-LOOP-1) | Deployment-determined (a statement of deployment intent, emitted by the producer) |
-| `ddl_capture` | `"verbatim"` \| `"structural"` \| `"none"` (absent = `"none"`) | Whether source DDL operations affecting captured tables' emission schemas are surfaced as DDL events (Section 9), and whether statement text is verbatim. Never affects the OBJECT_METADATA obligation (Section 4.1). | Producer-determined (emission, per deployment configuration), ceilinged by the source's change interface: `"verbatim"` requires statement text in the capture stream; deployment configuration and licensing set the effective value at or below that ceiling. Conservative value when unconfigured: `"none"`. |
+| `ddl_capture` | `"verbatim"` \| `"structural"` \| `"none"` (absent = `"none"`) | Whether source DDL operations affecting captured tables' emission schemas are surfaced as DDL events (Section 8), and whether statement text is verbatim. Never affects the OBJECT_METADATA obligation (Section 4.1). | Producer-determined (emission, per deployment configuration), ceilinged by the source's change interface: `"verbatim"` requires statement text in the capture stream; deployment configuration and licensing set the effective value at or below that ceiling. Conservative value when unconfigured: `"none"`. |
 | `schema_delivery.schema_on_change` | `true` (required) | Schema before a table's first data event and upon any emission-schema change (Section 4.4) | Producer-determined (emission): the emission schema is fixed by the producer's capture configuration and mapping, not by the source catalog alone |
 | `schema_delivery` (other modes) | booleans (absent = `false`) | Reconnect / each-event / by-reference delivery options (Section 4.4) | Deployment-determined (reconnect is architecture-determined for session-serving products) |
 
@@ -371,7 +368,7 @@ The table above governs the *emission* declaration. A payload-only producer decl
 
 `session_aware` composes freely with every row above; it governs metadata/schema delivery (Sections 4.5.2, 10.4), never ordering.
 
-`ddl_capture` likewise composes freely with every row above; it governs DDL-event emission only (Section 9), never ordering, transaction completion, or schema delivery.
+`ddl_capture` likewise composes freely with every row above; it governs DDL-event emission only (Section 8), never ordering, transaction completion, or schema delivery.
 
 **Forward compatibility (P-COMPAT-1).** New `com.{org}.cdc.meta.*` lifecycle types are additive; producers MUST NOT repurpose existing type names. The `dml.*` and `ddl.*` operation vocabularies are closed and spec-defined: producers MUST NOT introduce operation type names outside this specification's vocabulary, and new values in these families arrive only by specification revision. Consumer handling of unrecognized event types -- ignore unknown `meta.*`, never ignore unknown `dml.*`/`ddl.*` -- is specified in Appendix A (C-COMPAT-1).
 
@@ -385,7 +382,7 @@ Every OBJECT_METADATA event MUST include a json_schema block with additionalProp
 
 ## 2.5 DDL as a First-Class Citizen
 
-Schema evolution is detectable by reading only the stream -- no out-of-band notification, polling, or database introspection is required. The unconditional carrier of this property is OBJECT_METADATA: every emission-schema change produces a new schema declaration before data flows under it (Section 4.1), on every conformant stream regardless of source capabilities. When the producer declares `ddl_capture` other than `"none"` (Section 2.2a), source DDL operations affecting captured tables' emission schemas MUST additionally be emitted as DDL events, logically ordered with data events (Section 9). DDL events add provenance -- the operation's kind, verbatim text where available, and its exact position in the transaction order -- but the schema-evolution contract never depends on them. (Consumer schema-evolution handling is specified in Appendix A.2.)
+Schema evolution is detectable by reading only the stream -- no out-of-band notification, polling, or database introspection is required. The unconditional carrier of this property is OBJECT_METADATA: every emission-schema change produces a new schema declaration before data flows under it (Section 4.1), on every conformant stream regardless of source capabilities. When the producer declares `ddl_capture` other than `"none"` (Section 2.2a), source DDL operations affecting captured tables' emission schemas MUST additionally be emitted as DDL events, logically ordered with data events (Section 8). DDL events add provenance -- the operation's kind, verbatim text where available, and its exact position in the transaction order -- but the schema-evolution contract never depends on them. (Consumer schema-evolution handling is specified in Appendix A.2.)
 
 #### Single Channel Stream
 
@@ -393,7 +390,7 @@ DDL and DML events reside in the same emission channel, and the producer's logic
 
 #### Multi-Channel / Distributed Topologies
 
-DDL events MAY be routed to a channel physically separate from DML events (e.g., a dedicated DDL topic). The invariant is logical order, not physical co-location. The OpenCDC ordering fields (cdcxid, cdctxorder, pos.lsn, pos.lsn_offset) MUST be sufficient to reconstruct each transaction's internal order and its correlation across channels, regardless of physical transport topology. A total order across transactions additionally requires the producer to declare ordering_scope: "stream" and the consumer to receive that sequence as one ordered channel (Section 8.2).
+DDL events MAY be routed to a channel physically separate from DML events (e.g., a dedicated DDL topic). The invariant is logical order, not physical co-location. The OpenCDC ordering fields (cdcxid, cdctxorder, pos.lsn, pos.lsn_offset) MUST be sufficient to reconstruct each transaction's internal order and its correlation across channels, regardless of physical transport topology. A total order across transactions additionally requires the producer to declare ordering_scope: "stream" and the consumer to receive that sequence as one ordered channel (Section 7.2).
 
 ## 2.6 Source Agnosticism
 
@@ -441,7 +438,7 @@ To ensure that partial implementations can interoperate, OpenCDC defines a Minim
 - **Transaction Ordering**
   - Common: Producer MUST assign monotonic cdctxorder within each cdcxid group.
   - Single Channel Stream: Producer MUST emit all events of a transaction before any event of the next transaction (no interleaving). Consumer detects transaction completion by observing a new cdcxid or a HEARTBEAT.
-  - Multi-Channel / Distributed: Events for a transaction MAY arrive across multiple independent channels. An explicit transaction completeness marker (TRX_COMMIT) is REQUIRED when `transaction_interleaving: "possible"` is declared (Section 10.5) and enables deterministic boundary detection.
+  - Multi-Channel / Distributed: Events for a transaction MAY arrive across multiple independent channels. An explicit transaction completeness marker (TRX_COMMIT) is REQUIRED when `transaction_interleaving: "possible"` is declared (Section 9.5) and enables deterministic boundary detection.
 
 - **Stream Liveness**
   - Producer MUST: Emit HEARTBEAT during idle periods
@@ -450,7 +447,7 @@ Consumer-side obligations for the minimum profile (accept/apply DML, cache schem
 
 Stretch features (UPSERT, TRUNCATE, SNAPSHOT, bidirectional sync loop prevention, partial UPDATE images, Observability fields) are RECOMMENDED but not required for minimum profile conformance.
 
-TRUNCATE conformance refinement: A producer that emits TRUNCATE events and whose source engine exposes truncate execution options (such as cascade behavior or identity-sequence reset behavior) SHOULD populate the truncate_details object defined in Section 10.2. A producer that emits TRUNCATE events for an engine that does not expose such options (or cannot observe them from the capture layer) MAY omit truncate_details entirely. A producer that omits truncate_details is conformant; a producer that populates truncate_details with incorrect or fabricated values is non-conformant. See Section 10.2 for the full truncate_details specification and per-engine guidance.
+TRUNCATE conformance refinement: A producer that emits TRUNCATE events and whose source engine exposes truncate execution options (such as cascade behavior or identity-sequence reset behavior) SHOULD populate the truncate_details object defined in Section 9.2. A producer that emits TRUNCATE events for an engine that does not expose such options (or cannot observe them from the capture layer) MAY omit truncate_details entirely. A producer that omits truncate_details is conformant; a producer that populates truncate_details with incorrect or fabricated values is non-conformant. See Section 9.2 for the full truncate_details specification and per-engine guidance.
 
 # 3. CloudEvents Envelope
 
@@ -500,7 +497,7 @@ com.{org}.cdc.dml.INSERT
 com.{org}.cdc.dml.UPDATE
 com.{org}.cdc.dml.DELETE
 com.{org}.cdc.dml.UPSERT      # explicit upsert -- not an INSERT+DELETE pair
-com.{org}.cdc.dml.TRUNCATE    # delete all rows; no before/after image; NOTE: transactional in PostgreSQL/SQL Server, DDL (implicit commit) in Oracle/MySQL -- see Section 10.2
+com.{org}.cdc.dml.TRUNCATE    # delete all rows; no before/after image; NOTE: transactional in PostgreSQL/SQL Server, DDL (implicit commit) in Oracle/MySQL -- see Section 9.2
 # DDL operations (schema changes)
 com.{org}.cdc.ddl.CREATE
 com.{org}.cdc.ddl.ALTER
@@ -509,7 +506,7 @@ com.{org}.cdc.ddl.DROP
 com.{org}.cdc.meta.STREAM_METADATA    # stream-level configuration and producer identity
 com.{org}.cdc.meta.OBJECT_METADATA    # table schema -- mandatory before first DML
 com.{org}.cdc.meta.HEARTBEAT          # liveness signal during idle periods
-com.{org}.cdc.meta.TRX_COMMIT         # transaction completeness marker (Section 10.5)
+com.{org}.cdc.meta.TRX_COMMIT         # transaction completeness marker (Section 9.5)
 #
 # Reserved (future transaction_visibility mode; NOT specified in this revision):
 #   com.{org}.cdc.meta.TRX_BEGIN, com.{org}.cdc.meta.TRX_ABORT
@@ -544,7 +541,7 @@ CDC-specific envelope fields that have no CloudEvents native equivalent are carr
 - **cdcpos**
   - Type: String
   - Required: MUST for DML, DDL, and HEARTBEAT events. MUST for OBJECT_METADATA events that are part of the durable stream; omitted for non-durable re-emissions (Schema on Reconnect, Schema on Each Event). Omitted for STREAM_METADATA (not part of durable stream ordering per Section 4.1).
-  - Description: Opaque, stable stream position for consumer resume/replay. *Illustrative (non-normative): consumers treat this as an opaque string and do not parse it; see Appendix A.7.* See Section 8 (Position and Replay Semantics).
+  - Description: Opaque, stable stream position for consumer resume/replay. *Illustrative (non-normative): consumers treat this as an opaque string and do not parse it; see Appendix A.7.* See Section 7 (Position and Replay Semantics).
 
 - **partitionkey**
   - Type: String
@@ -562,7 +559,7 @@ CDC-specific envelope fields that have no CloudEvents native equivalent are carr
 - **sequence**
   - Type: String
   - Required: SHOULD
-  - Description: Producer-assigned monotonic counter. This is the official CloudEvents sequence extension attribute. Value MUST be a non-negative decimal integer encoded as a string, no leading zeros (e.g., "10042"). Monotonically increasing within a session; gaps are permitted and MUST NOT be interpreted as dropped events. Session-scoped -- not guaranteed to be continuous across reconnects. Distinct from pos.lsn_offset (per-LSN disambiguator) and cdctxorder (per-transaction ordinal). See Section 8.4 for discontinuity handling. Requirement IDs: P-SEQ-1, P-SEQ-2, P-SEQ-3 (producer); C-SEQ-2, C-SEQ-1 (consumer).
+  - Description: Producer-assigned monotonic counter. This is the official CloudEvents sequence extension attribute. Value MUST be a non-negative decimal integer encoded as a string, no leading zeros (e.g., "10042"). Monotonically increasing within a session; gaps are permitted and MUST NOT be interpreted as dropped events. Session-scoped -- not guaranteed to be continuous across reconnects. Distinct from pos.lsn_offset (per-LSN disambiguator) and cdctxorder (per-transaction ordinal). See Section 7.4 for discontinuity handling. Requirement IDs: P-SEQ-1, P-SEQ-2, P-SEQ-3 (producer); C-SEQ-2, C-SEQ-1 (consumer).
 
     #### Single Channel Stream
 
@@ -570,7 +567,7 @@ CDC-specific envelope fields that have no CloudEvents native equivalent are carr
 
     #### Multi-Channel / Distributed Topologies
 
-    When events are distributed across multiple channels, a single global sequence counter is producer-assigned but does not by itself establish a consumable total order. Sequence values are comparable within a session; they do not establish a consumable total order across channels read independently, and a consumer reading several channels cannot know that a delayed lower-sequence event will not arrive later. Whether a given transport arrangement preserves the emitted total order end to end is a delivery question outside this specification's scope, addressed by future transport binding profiles (Section 12). Per-channel ordering is provided by the transport's native ordering. The sequence field remains useful for cross-channel correlation, gap detection, and lag monitoring. (Consumer ordering guidance is in Appendix A.4.)
+    When events are distributed across multiple channels, a single global sequence counter is producer-assigned but does not by itself establish a consumable total order. Sequence values are comparable within a session; they do not establish a consumable total order across channels read independently, and a consumer reading several channels cannot know that a delayed lower-sequence event will not arrive later. Whether a given transport arrangement preserves the emitted total order end to end is a delivery question outside this specification's scope, addressed by future transport binding profiles (Section 11). Per-channel ordering is provided by the transport's native ordering. The sequence field remains useful for cross-channel correlation, gap detection, and lag monitoring. (Consumer ordering guidance is in Appendix A.4.)
 
 - **cdcschemauri**
   - Type: String
@@ -583,7 +580,7 @@ Bidirectional database-to-database sync (see the OpenCDC User Stories document) 
 
 - The source CloudEvents field identifies the originating system (e.g., //aurora-prod.acme.com/sales). This value MUST reflect the database instance where the change originally occurred -- not the CDC tool that captured it.
 
-- P-LOOP-1 (BD): A producer declaring `bidirectional: true` in STREAM_METADATA (Section 10.4) MUST NOT re-emit a change toward the counterpart it was applied from -- the change's *ingress counterpart*, recovered from the apply-time mark described below. A change carrying an apply-time mark whose recorded original origin is this deployment's own source identifier MUST also be suppressed. Neither rule reaches a natively originated change: a local change carries no apply-time mark, and a producer emits its own native changes normally with its own identifier in source. This is the loop suppression filter. Changes the producer does emit, including any applied change forwarded onward to a different counterpart, MUST carry the change's original origin in the source field, never the forwarding node's own identifier. The `bidirectional` declaration is what binds this obligation; producers that do not declare it carry no loop-suppression duty. Obligations are defined pairwise (Terms and Definitions, "Bidirectional pair"); cyclic and multi-path topologies are deferred to a future optional Bidirectional Interop Profile.
+- P-LOOP-1 (BD): A producer declaring `bidirectional: true` in STREAM_METADATA (Section 9.4) MUST NOT re-emit a change toward the counterpart it was applied from -- the change's *ingress counterpart*, recovered from the apply-time mark described below. A change carrying an apply-time mark whose recorded original origin is this deployment's own source identifier MUST also be suppressed. Neither rule reaches a natively originated change: a local change carries no apply-time mark, and a producer emits its own native changes normally with its own identifier in source. This is the loop suppression filter. Changes the producer does emit, including any applied change forwarded onward to a different counterpart, MUST carry the change's original origin in the source field, never the forwarding node's own identifier. The `bidirectional` declaration is what binds this obligation; producers that do not declare it carry no loop-suppression duty. Obligations are defined pairwise (Terms and Definitions, "Bidirectional pair"); cyclic and multi-path topologies are deferred to a future optional Bidirectional Interop Profile.
 
 - Producers MAY include an optional cdcsourceid extension attribute carrying a stable, unique identifier for the originating system (e.g., a UUID assigned at deployment time) for use cases where URI-based source comparison is insufficient.
 
@@ -603,7 +600,7 @@ Original origin and ingress counterpart are distinct facts: the former travels i
 
 These are apply-side obligations stated here rather than in Appendix A because a deployment declaring `bidirectional: true` claims the apply and capture sides as one conformance unit: the apply-side tagging is a mechanical precondition of the capture side's P-LOOP-1 conformance, not consumer-directed guidance. This specification defines the tagging contract at the outcome level only; a portable cross-vendor tagging mechanism (for mixed-tool nodes) is deferred to a future optional Bidirectional Interop Profile.
 
-- Intermediary integrity (binding scope): obligations of intermediaries -- preserving the emission guarantees they relay and the markers a re-topologized stream requires -- are the province of transport binding profiles (Section 12) and are not normative in this core. An intermediary that itself generates new OpenCDC events (rather than relaying them) is a producer for those events and carries producer obligations. A consumer that silently discards events based on source matching without a conformant producer-side implementation creates a system that appears to work but will corrupt data if producer-side filtering ever fails.
+- Intermediary integrity (binding scope): obligations of intermediaries -- preserving the emission guarantees they relay and the markers a re-topologized stream requires -- are the province of transport binding profiles (Section 11) and are not normative in this core. An intermediary that itself generates new OpenCDC events (rather than relaying them) is a producer for those events and carries producer obligations. A consumer that silently discards events based on source matching without a conformant producer-side implementation creates a system that appears to work but will corrupt data if producer-side filtering ever fails.
 
 ## 3.5 Canonical Envelope Example
 
@@ -640,13 +637,13 @@ The following are MUST requirements for all conforming producers, regardless of 
 
 - P-ORD-4: An OBJECT_METADATA event for a table MUST be emitted before a consumer is expected to decode any DML event (INSERT, UPDATE, DELETE, UPSERT, TRUNCATE) or snapshot.READ event for that table. The mechanism by which this is achieved depends on the topology (see subsections below).
 
-- P-ORD-5: A producer MUST NOT emit a DML event whose payload does not conform to the current emission schema for its table (Section 2.4). Whenever a table's emission schema changes -- for any reason, including but not limited to a source schema change, a change to the captured table or column set, or a change in producer mapping configuration -- a new OBJECT_METADATA event MUST be emitted, with schema_version incremented per Section 4.2, before the first DML event emitted under the changed schema. When the producer emits a DDL event for the change (Section 9, ddl_capture), the new OBJECT_METADATA MUST follow that DDL event.
+- P-ORD-5: A producer MUST NOT emit a DML event whose payload does not conform to the current emission schema for its table (Section 2.4). Whenever a table's emission schema changes -- for any reason, including but not limited to a source schema change, a change to the captured table or column set, or a change in producer mapping configuration -- a new OBJECT_METADATA event MUST be emitted, with schema_version incremented per Section 4.2, before the first DML event emitted under the changed schema. When the producer emits a DDL event for the change (Section 8, ddl_capture), the new OBJECT_METADATA MUST follow that DDL event.
 
 - P-DML-1: DML event before and after value objects MUST carry column data values only. source_type, logical_type, parameters, and nullability MUST NOT appear within before or after row value objects — they reside in the OBJECT_METADATA column descriptor. When Schema on Each Event is active (Section 4.5.3), an additional _schema key MAY appear at the top level of the DML data object; this is the sole permitted location for per-event schema restatement and does not affect the values-only constraint on before/after.
 
 - The dataschema field of every DML event MUST equal the CloudEvents id of the most recently emitted OBJECT_METADATA event for its table. This invariant holds in every schema-delivery mode and is not relaxed by Schema on Each Event or Schema by Reference; both supplement the id linkage rather than replacing it. Replay correctness depends on it (R-POS-7).
 
-- The producer MUST declare its active schema delivery modes in STREAM_METADATA (see Section 10.4 for declaration obligations and topology-specific delivery mechanisms).
+- The producer MUST declare its active schema delivery modes in STREAM_METADATA (see Section 9.4 for declaration obligations and topology-specific delivery mechanisms).
 
 #### Single Channel Stream
 
@@ -671,7 +668,7 @@ MANDATORY STREAM ORDERING -- SESSION-AWARE PRODUCER (per consumer session):
   VIOLATION: emitting [6] referencing the same id as [2] after a DDL change -> non-conformant producer
 ```
 
-When `session_aware` is false, the producer cannot detect consumer connections and therefore cannot emit session-scoped events ([1] in the diagram above). In this case, STREAM_METADATA and OBJECT_METADATA are emitted as ordinary events in the producer's sequence; how they are surfaced to consumers (control channel, transport metadata, first record) is a delivery-layer concern (Section 10.4, Appendix B). The producer's payload obligation is that OBJECT_METADATA availability be ensured via an effective schema mode: Schema on Each Event (Section 4.5.3) or a durable schema record in the emitted stream. The OBJECT_METADATA-before-DML ordering constraint ([2] before [3]) still applies to events within the durable stream.
+When `session_aware` is false, the producer cannot detect consumer connections and therefore cannot emit session-scoped events ([1] in the diagram above). In this case, STREAM_METADATA and OBJECT_METADATA are emitted as ordinary events in the producer's sequence; how they are surfaced to consumers (control channel, transport metadata, first record) is a delivery-layer concern (Section 9.4, Appendix B). The producer's payload obligation is that OBJECT_METADATA availability be ensured via an effective schema mode: Schema on Each Event (Section 4.5.3) or a durable schema record in the emitted stream. The OBJECT_METADATA-before-DML ordering constraint ([2] before [3]) still applies to events within the durable stream.
 
 #### Multi-Channel / Distributed Topologies
 
@@ -848,7 +845,7 @@ Conformance Rule -- Baseline (P-SCHEMA-1): Schema on Change is unconditionally m
 
 Conformance Rule -- Reconnect Coverage (CRITICAL) (P-SCHEMA-2, P-SCHEMA-4): A producer MUST implement at least one of Schema on Reconnect or Schema on Each Event, in addition to Schema on Change. Schema by Reference alone does NOT satisfy this constraint -- relying solely on an external registry creates an infrastructure dependency that violates Section 2.1 (Infrastructure Independence). If a producer disables Schema on Reconnect (schema_on_reconnect: false), Schema on Each Event MUST be active (schema_on_each_event: true), and vice versa. A producer with both set to false is non-conformant. **Coverage is judged on effective values, and silence is not coverage:** because both modes default to false when absent (Defaults and Silence, Section 2.2a), a producer that declares schema_delivery: { schema_on_change: true } and nothing further has no effective reconnect coverage and is non-conformant. Satisfying this rule always requires an affirmative declaration of at least one of the two modes; a minimal conformant schema_delivery object therefore carries two entries, not one. This is the rule that protects consumers joining mid-stream, which is why it admits no silent default.
 
-Conformance Rule -- Declaration (P-SCHEMA-3, C-SCHEMA-1): A producer MUST declare its active schema delivery modes in the schema_delivery object of the STREAM_METADATA event (Section 10.4). (Consumer schema-acquisition behavior is specified in Appendix A.1/A.2.)
+Conformance Rule -- Declaration (P-SCHEMA-3, C-SCHEMA-1): A producer MUST declare its active schema delivery modes in the schema_delivery object of the STREAM_METADATA event (Section 9.4). (Consumer schema-acquisition behavior is specified in Appendix A.1/A.2.)
 
 #### Topology Guidance
 
@@ -864,9 +861,9 @@ This subsection defines the precise behavioral obligations for each schema deliv
 
 The producer MUST emit an OBJECT_METADATA event for a table before any DML event or snapshot.READ event for that table within any consumption context (session, offset-based join, or replay).
 
-Schema publication scope: a stream without an initial load provides schema knowledge only for its *active tables* (see Terms and Definitions) -- captured tables for which no change events have yet flowed carry no schema-publication obligation before their first event. Deployments requiring a complete day-one table catalog should use a SNAPSHOT phase (Section 10.3) or an out-of-band inventory.
+Schema publication scope: a stream without an initial load provides schema knowledge only for its *active tables* (see Terms and Definitions) -- captured tables for which no change events have yet flowed carry no schema-publication obligation before their first event. Deployments requiring a complete day-one table catalog should use a SNAPSHOT phase (Section 9.3) or an out-of-band inventory.
 
-The producer MUST emit a new OBJECT_METADATA event upon any change to a table's emission schema, before the first subsequent DML event emitted under the changed schema. When a DDL event is emitted for the change (Section 9), the OBJECT_METADATA MUST follow it.
+The producer MUST emit a new OBJECT_METADATA event upon any change to a table's emission schema, before the first subsequent DML event emitted under the changed schema. When a DDL event is emitted for the change (Section 8), the OBJECT_METADATA MUST follow it.
 
 The schema_version integer MUST increment by exactly 1 on each emission-schema change (including an incarnation boundary, Section 4.2). It MUST NOT increment when OBJECT_METADATA is re-emitted with unchanged descriptors due to reconnection or replay.
 
@@ -884,7 +881,7 @@ When `session_aware` is false, Schema on Reconnect cannot be implemented via in-
 
 #### Multi-Channel / Distributed Topologies
 
-In multi-channel deployments, the producer typically has no direct session relationship with consumers, and this mode is satisfied by a different path. Schema on Reconnect is achieved by the delivery layer retaining current OBJECT_METADATA events on a durable control channel (or equivalent) that consumers read on startup; the producer's obligation is to have emitted the current OBJECT_METADATA for every *active table* (see Terms and Definitions) such that the delivery layer can retain it. A multi-channel producer MAY therefore declare `schema_on_reconnect: true` with `session_aware: false`. The producer's conformance for this declaration is judged on its emission behavior alone: current OBJECT_METADATA emitted for every active table. Whether the deployment's transport actually retains those events on a durable channel readable at startup is a delivery property this specification does not govern (Scope of Declarations, Section 2.2a; binding profiles, Section 12); a deployment whose transport does not provide such retention SHOULD instead satisfy reconnect coverage via Schema on Each Event (P-SCHEMA-2). When schema_on_reconnect is false, Schema on Each Event MUST be active so schema is always resolvable without session-scoped re-emission. (Consumer behavior in this mode is described in Appendix A.2.)
+In multi-channel deployments, the producer typically has no direct session relationship with consumers, and this mode is satisfied by a different path. Schema on Reconnect is achieved by the delivery layer retaining current OBJECT_METADATA events on a durable control channel (or equivalent) that consumers read on startup; the producer's obligation is to have emitted the current OBJECT_METADATA for every *active table* (see Terms and Definitions) such that the delivery layer can retain it. A multi-channel producer MAY therefore declare `schema_on_reconnect: true` with `session_aware: false`. The producer's conformance for this declaration is judged on its emission behavior alone: current OBJECT_METADATA emitted for every active table. Whether the deployment's transport actually retains those events on a durable channel readable at startup is a delivery property this specification does not govern (Scope of Declarations, Section 2.2a; binding profiles, Section 11); a deployment whose transport does not provide such retention SHOULD instead satisfy reconnect coverage via Schema on Each Event (P-SCHEMA-2). When schema_on_reconnect is false, Schema on Each Event MUST be active so schema is always resolvable without session-scoped re-emission. (Consumer behavior in this mode is described in Appendix A.2.)
 
 ### 4.5.3 Schema on Each Event (OPTIONAL, default OFF)
 
@@ -894,7 +891,7 @@ The DML event's dataschema CloudEvents field MUST still reference the CloudEvent
 
 Note: The _schema embedding does not violate the Section 4.1 values-only constraint on before/after — it is a separate, optional top-level key alongside those fields, not within them.
 
-Key use cases: stateless consumption where the consumer process has no persistent schema cache (e.g., serverless functions, ephemeral containers); consumers that join a stream mid-session without access to start-of-connection OBJECT_METADATA events; consumers operating in Ephemeral Mode (Section 15.2); **multi-channel / distributed deployments where consumers read individual topics and cannot rely on in-stream schema ordering**. Wire overhead of embedding _schema in every DML event is significant for wide tables -- producers SHOULD document per-event overhead.
+Key use cases: stateless consumption where the consumer process has no persistent schema cache (e.g., serverless functions, ephemeral containers); consumers that join a stream mid-session without access to start-of-connection OBJECT_METADATA events; consumers operating in Ephemeral Mode (Section 14.2); **multi-channel / distributed deployments where consumers read individual topics and cannot rely on in-stream schema ordering**. Wire overhead of embedding _schema in every DML event is significant for wide tables -- producers SHOULD document per-event overhead.
 
 ### 4.5.4 Schema by Reference (OPTIONAL, default OFF)
 
@@ -958,7 +955,7 @@ Table identity MUST be split into discrete fields to accommodate heterogeneous s
 
 - **pos**
   - Required: MUST
-  - Description: Structured position object. See Section 8.1.
+  - Description: Structured position object. See Section 7.1.
 
 - **checksum**
   - Required: OPTIONAL
@@ -1151,9 +1148,9 @@ The following ordering obligations are common to all topologies:
 
 - P-ORD-4: The OBJECT_METADATA event for a table MUST be available to consumers before any DML event for that table. The mechanism for ensuring this availability is topology-dependent (see Section 4.1).
 
-- P-ORD-5: A producer MUST NOT emit a DML event whose payload does not conform to the current emission schema for its table. Whenever a table's emission schema changes, a new OBJECT_METADATA event MUST be emitted before the first DML event emitted under the changed schema. Section 4.1 states the rule in full: what counts as an emission-schema change, the schema_version increment (Section 4.2), and the ordering relative to any DDL event (Section 9).
+- P-ORD-5: A producer MUST NOT emit a DML event whose payload does not conform to the current emission schema for its table. Whenever a table's emission schema changes, a new OBJECT_METADATA event MUST be emitted before the first DML event emitted under the changed schema. Section 4.1 states the rule in full: what counts as an emission-schema change, the schema_version increment (Section 4.2), and the ordering relative to any DDL event (Section 8).
 
-- P-ORD-7 (Multi-Table TRUNCATE): When a source engine executes a single TRUNCATE statement that explicitly names multiple tables (e.g., PostgreSQL TRUNCATE table_a, table_b, table_c;), the producer MUST emit one TRUNCATE event per named table. All TRUNCATE events from the same multi-table statement MUST carry the same cdcxid value and MUST be assigned sequential cdctxorder values (0, 1, 2, ...) in the order the tables appear in the statement or in capture-layer log order when statement order is not determinable. A producer that emits TRUNCATE events for a multi-table statement with different cdcxid values is non-conformant. IMPORTANT: a multi-table TRUNCATE (user explicitly names multiple tables in one statement) is distinct from CASCADE-propagated truncation (implicit truncation of related tables via foreign key relationships). Both produce multiple TRUNCATE events sharing a cdcxid, but the mechanism differs. The multi_table field in truncate_details (Section 10.2) signals the explicit case; the cascade field signals CASCADE behavior. Propagated table enumeration is explicitly deferred to a future specification version.
+- P-ORD-7 (Multi-Table TRUNCATE): When a source engine executes a single TRUNCATE statement that explicitly names multiple tables (e.g., PostgreSQL TRUNCATE table_a, table_b, table_c;), the producer MUST emit one TRUNCATE event per named table. All TRUNCATE events from the same multi-table statement MUST carry the same cdcxid value and MUST be assigned sequential cdctxorder values (0, 1, 2, ...) in the order the tables appear in the statement or in capture-layer log order when statement order is not determinable. A producer that emits TRUNCATE events for a multi-table statement with different cdcxid values is non-conformant. IMPORTANT: a multi-table TRUNCATE (user explicitly names multiple tables in one statement) is distinct from CASCADE-propagated truncation (implicit truncation of related tables via foreign key relationships). Both produce multiple TRUNCATE events sharing a cdcxid, but the mechanism differs. The multi_table field in truncate_details (Section 9.2) signals the explicit case; the cascade field signals CASCADE behavior. Propagated table enumeration is explicitly deferred to a future specification version.
 
 #### Single Channel Stream
 
@@ -1251,13 +1248,9 @@ A conforming producer MUST emit events that a conforming consumer can apply with
 
 This is the normative statement of the specification's core interoperability requirement (see the OpenCDC User Stories document for the motivating use cases). Any event that requires consumer-side vendor knowledge to decode is non-conformant regardless of whether other fields are correctly populated.
 
-# 7. Consumer Contract
+# 7. Position and Replay Semantics
 
-The behavioral obligations a consumer adopts are non-normative for this specification, which governs producer behavior (see Document Authority and Scope). A producer's job is to emit a stream that a consumer can read and interpret with full fidelity; how a given consumer chooses to apply that stream depends on the service level it targets. The consumer obligations formerly stated here -- ordering, schema evolution, idempotency, LOB handling, validation, and TRUNCATE handling -- are collected as service-level guidance in Appendix A (Consumer Conformance, Obligations & Service-Level Guidance).
-
-# 8. Position and Replay Semantics
-
-## 8.1 Structured Position Object
+## 7.1 Structured Position Object
 
 Every DML, DDL, and HEARTBEAT event MUST include a pos object in its data payload. The pos object provides structured, source-agnostic positioning for stream resume and replay. It MUST NOT be the sole location of position information -- cdcpos in the CloudEvents envelope provides the opaque resume handle visible to infrastructure.
 
@@ -1272,7 +1265,7 @@ Every DML, DDL, and HEARTBEAT event MUST include a pos object in its data payloa
 
 - **lsn**
   - Required: MUST
-  - Description: Hex-encoded log sequence number normalized to a comparable string. MUST be monotonically increasing within a session. Across session boundaries and after a declared reset, comparability is governed by sequence_continuity (Section 8.4): under "guaranteed" values remain comparable across sessions; under "best_effort" or "reset" a new baseline is established at the boundary and values MUST NOT be compared across it. Used for ordering and deduplication.
+  - Description: Hex-encoded log sequence number normalized to a comparable string. MUST be monotonically increasing within a session. Across session boundaries and after a declared reset, comparability is governed by sequence_continuity (Section 7.4): under "guaranteed" values remain comparable across sessions; under "best_effort" or "reset" a new baseline is established at the boundary and values MUST NOT be compared across it. Used for ordering and deduplication.
 
 - **source_timestamp**
   - Required: MUST
@@ -1286,7 +1279,7 @@ Every DML, DDL, and HEARTBEAT event MUST include a pos object in its data payloa
   - Required: SHOULD
   - Description: Opaque, source-specific position value for replay. *Illustrative (non-normative): consumers do not parse this field; see Appendix A.7.* When `session_aware` is true, it is passed back to the producer verbatim when resuming. When `session_aware` is false or in multi-channel topologies, it is used by the consumer for checkpoint correlation. Examples: Oracle SCN+XID string, PostgreSQL pg_lsn, MySQL GTID.
 
-## 8.2 Replay Rules
+## 7.2 Replay Rules
 
 The following rules apply to producers in every topology, except where a rule states its own scope (R-POS-0 states an ordering scope that depends on the declared axes and on how the consumer receives the emitted sequence):
 
@@ -1305,7 +1298,7 @@ The following rules apply to producers in every topology, except where a rule st
 **Replay Guarantee Summary**
 Conformant replay MUST satisfy all three of the following:
 1. BEGINS BEFORE SCHEMA: Replay begins at or before the OBJECT_METADATA event that was current for each in-scope table at the resume position. The consumer always receives its schema before its first data event.
-2. PRESERVES ORDERING: Events are replayed in the same (pos.lsn, pos.lsn_offset) order as their original delivery. A producer that reorders events during replay is non-conformant. The CloudEvents sequence value MAY differ on replay from the original delivery value; it is therefore not a cross-session identity. (Consumer replay guidance is in Appendix A.7.) The deduplication key (source, id) is the only cross-session event identity guarantee (see Section 11.1).
+2. PRESERVES ORDERING: Events are replayed in the same (pos.lsn, pos.lsn_offset) order as their original delivery. A producer that reorders events during replay is non-conformant. The CloudEvents sequence value MAY differ on replay from the original delivery value; it is therefore not a cross-session identity. (Consumer replay guidance is in Appendix A.7.) The deduplication key (source, id) is the only cross-session event identity guarantee (see Section 10.1).
 3. PRESERVES IDs: Each replayed event carries its original CloudEvents id (UUID v4 assigned at creation). Generating new IDs during replay breaks consumer deduplication and is a producer conformance violation.
 
 #### Single Channel Stream
@@ -1316,7 +1309,7 @@ Conformant replay MUST satisfy all three of the following:
 
 - R-POS-2-MC: In multi-channel deployments, replay is consumer-driven. The consumer seeks to the appropriate transport offset on each delivery channel independently. The producer is not involved in the replay initiation. Schema availability on replay is ensured via the declared schema delivery mechanism (Schema on Each Event, schema control channel, or schema registry). Schema for each table is resolvable before applying DML events from that table's channel via the declared schema delivery mechanism. (Consumer obligation in Appendix A.2/A.7.) The cdcpos value MAY be used by consumers for cross-channel position correlation and checkpoint management, but it is not passed back to the producer.
 
-## 8.3 Transaction Boundaries
+## 7.3 Transaction Boundaries
 
 OpenCDC uses three distinct ordering fields serving different scopes. All three may be present simultaneously and MUST NOT be conflated. The CloudEvents sequence field (Section 3.3) provides global session-level total ordering; it is not included in the transaction boundary table below because it operates independently of transaction grouping.
 
@@ -1353,11 +1346,11 @@ The following requirements are common to all topologies:
 
 #### Single Channel Stream -- Transaction Completion
 
-T-COMPLETE: When `transaction_interleaving: "none"` is declared, a transaction is complete when (a) the first event of a new cdcxid is observed, OR (b) a HEARTBEAT is received after all events of the transaction have been delivered. When `transaction_interleaving: "possible"` is declared, completion is condition (c): the transaction's TRX_COMMIT has been received and the consumer holds all distinct cdctxorder ordinals 0..event_count-1 (Section 10.5). (a)/(b) are ordering-based mechanisms available under the "none" interleaving guarantee (per channel, when `ordering_scope: "channel"`); (c) is the marker mechanism required under "possible". Consumer-side reliability of (a)/(b) additionally presupposes that "none" interleaving actually holds at the point of consumption -- direct delivery, or a delivery context known to preserve it (Appendix A.1, C-COMP-1). Condition (b) is available in all single channel streams regardless of session awareness: the producer MUST emit a HEARTBEAT within the configured heartbeat_interval_seconds after any transaction that is followed by an idle period (T-HEARTBEAT), so a completion signal is guaranteed for the final transaction before an idle gap even when no subsequent cdcxid follows. This requirement applies whether session_aware is true or false, because completion-by-HEARTBEAT relies only on single channel total ordering (T-NOINTERLEAVE), not on session awareness.
+T-COMPLETE: When `transaction_interleaving: "none"` is declared, a transaction is complete when (a) the first event of a new cdcxid is observed, OR (b) a HEARTBEAT is received after all events of the transaction have been delivered. When `transaction_interleaving: "possible"` is declared, completion is condition (c): the transaction's TRX_COMMIT has been received and the consumer holds all distinct cdctxorder ordinals 0..event_count-1 (Section 9.5). (a)/(b) are ordering-based mechanisms available under the "none" interleaving guarantee (per channel, when `ordering_scope: "channel"`); (c) is the marker mechanism required under "possible". Consumer-side reliability of (a)/(b) additionally presupposes that "none" interleaving actually holds at the point of consumption -- direct delivery, or a delivery context known to preserve it (Appendix A.1, C-COMP-1). Condition (b) is available in all single channel streams regardless of session awareness: the producer MUST emit a HEARTBEAT within the configured heartbeat_interval_seconds after any transaction that is followed by an idle period (T-HEARTBEAT), so a completion signal is guaranteed for the final transaction before an idle gap even when no subsequent cdcxid follows. This requirement applies whether session_aware is true or false, because completion-by-HEARTBEAT relies only on single channel total ordering (T-NOINTERLEAVE), not on session awareness.
 
 - T-NOINTERLEAVE: Events from different transactions MUST NOT be interleaved in the stream. All events of transaction cdcxid=A MUST be delivered before any event of transaction cdcxid=B, for any A that commits before B. A producer that interleaves transaction events is non-conformant.
 
-OpenCDC defines an explicit transaction completeness marker, TRX_COMMIT (Section 10.5); where `transaction_interleaving: "none"` is declared it is OPTIONAL because transaction completion is reliably inferred (subject to the delivered order actually preserving it -- Appendix A.1, C-COMP-1 -- and to P-TRX-7 for payload-only producers): a consumer that has received all events for a given cdcxid (detected by receiving the first event of the next cdcxid, or by a HEARTBEAT after a transaction) may commit the transaction atomically. Producers MUST emit all events of a transaction before emitting any event of a subsequent transaction (i.e., transactions MUST NOT be interleaved in the stream). This guarantee makes transaction boundary detection reliable from cdcxid alone. This inference model works for both session-aware and sessionless single channel streams because the total ordering guarantee (T-NOINTERLEAVE) is a property of the single channel, not of session awareness.
+OpenCDC defines an explicit transaction completeness marker, TRX_COMMIT (Section 9.5); where `transaction_interleaving: "none"` is declared it is OPTIONAL because transaction completion is reliably inferred (subject to the delivered order actually preserving it -- Appendix A.1, C-COMP-1 -- and to P-TRX-7 for payload-only producers): a consumer that has received all events for a given cdcxid (detected by receiving the first event of the next cdcxid, or by a HEARTBEAT after a transaction) may commit the transaction atomically. Producers MUST emit all events of a transaction before emitting any event of a subsequent transaction (i.e., transactions MUST NOT be interleaved in the stream). This guarantee makes transaction boundary detection reliable from cdcxid alone. This inference model works for both session-aware and sessionless single channel streams because the total ordering guarantee (T-NOINTERLEAVE) is a property of the single channel, not of session awareness.
 
 #### Multi-Channel / Distributed Topologies -- Transaction Completion
 
@@ -1367,13 +1360,13 @@ In multi-channel deployments, the single channel stream inference mechanisms (ne
 - A new cdcxid on one emission channel does not guarantee all events of the prior transaction have arrived on other channels.
 - A HEARTBEAT on one emission channel says nothing about event delivery completeness on other channels.
 
-Producers declaring `transaction_interleaving: "possible"` MUST provide an explicit transaction completeness mechanism: transaction_boundaries MUST be commit_all -- markers for every transaction, including single-event ones, since under interleaving a markerless transaction cannot be distinguished from an incomplete one; commit_multi_event is not a valid completion mode here, and the value none is non-conformant when interleaving is possible), and the producer MUST emit TRX_COMMIT markers per the declared mode (Section 10.5). Approaches include:
+Producers declaring `transaction_interleaving: "possible"` MUST provide an explicit transaction completeness mechanism: transaction_boundaries MUST be commit_all -- markers for every transaction, including single-event ones, since under interleaving a markerless transaction cannot be distinguished from an incomplete one; commit_multi_event is not a valid completion mode here, and the value none is non-conformant when interleaving is possible), and the producer MUST emit TRX_COMMIT markers per the declared mode (Section 9.5). Approaches include:
 
-- **TRX_COMMIT marker**: A dedicated transaction completeness event carrying an event_count field that enables consumers to verify they have received all events for a transaction by comparing collected cdctxorder ordinals against the declared count. This is the REQUIRED approach for any stream declaring `transaction_interleaving: "possible"` (P-TRX-1), in any topology, and is defined normatively in Section 10.5. A stream declaring `transaction_interleaving: "none"` requires no markers whatever its `ordering_scope` (Section 2.2a); payload-only producers SHOULD nonetheless emit them (P-TRX-7).
+- **TRX_COMMIT marker**: A dedicated transaction completeness event carrying an event_count field that enables consumers to verify they have received all events for a transaction by comparing collected cdctxorder ordinals against the declared count. This is the REQUIRED approach for any stream declaring `transaction_interleaving: "possible"` (P-TRX-1), in any topology, and is defined normatively in Section 9.5. A stream declaring `transaction_interleaving: "none"` requires no markers whatever its `ordering_scope` (Section 2.2a); payload-only producers SHOULD nonetheless emit them (P-TRX-7).
 
 - **Transaction metadata channel**: A dedicated channel (e.g., a transaction metadata topic) that carries transaction boundary markers (BEGIN/END events with event counts per table). Consumers correlate these markers with events received on data channels.
 
-A producer declaring `transaction_interleaving: "possible"` MUST declare its transaction boundary mechanism in STREAM_METADATA (Section 10.4); because markers are mandatory whenever interleaving is possible, the value none is non-conformant for such a producer regardless of topology. The producer also declares the marker delivery placement (a dedicated transaction-metadata channel or per-channel) in STREAM_METADATA so consumers know where to read markers.
+A producer declaring `transaction_interleaving: "possible"` MUST declare its transaction boundary mechanism in STREAM_METADATA (Section 9.4); because markers are mandatory whenever interleaving is possible, the value none is non-conformant for such a producer regardless of topology. The producer also declares the marker delivery placement (a dedicated transaction-metadata channel or per-channel) in STREAM_METADATA so consumers know where to read markers.
 
 Where `transaction_interleaving: "none"` is declared, events from different transactions MUST NOT be interleaved within an emission channel (T-NOINTERLEAVE applies per channel; stream-wide under `ordering_scope: "stream"`). Where `"possible"` is declared, interspersal is permitted and completion is established by markers instead (P-TRX-1). Across independently delivered channels, events from different transactions MAY arrive in any order.
 
@@ -1384,11 +1377,11 @@ Transactional TRUNCATE (PostgreSQL, SQL Server): TRUNCATE is a fully transaction
 
 Non-Transactional TRUNCATE (Oracle, MySQL/MariaDB): TRUNCATE is a DDL statement that causes an implicit COMMIT of any open transaction before executing and cannot be rolled back. Because it does not belong to a real source transaction, a producer capturing an Oracle or MySQL TRUNCATE MUST assign a synthetic cdcxid value. The synthetic value MUST be: (a) unique within the stream, (b) stable across replay of the same event (same synthetic cdcxid on replay), and (c) documented by the producer implementation. Non-transactional TRUNCATE events will never appear alongside other DML events in the same cdcxid -- they are always solitary single-event synthetic transactions.
 
-## 8.4 Sequence Discontinuity -- Producer Obligations and Consumer Handling
+## 7.4 Sequence Discontinuity -- Producer Obligations and Consumer Handling
 
 Under normal operation, the CloudEvents sequence counter is monotonically increasing within a session and pos.lsn values are monotonically increasing within a stream (P-SEQ-6). Several real-world operational conditions break these guarantees. This section defines how producers MUST signal discontinuities; consumer responses are specified in Appendix A.7.
 
-### 8.4.1 Sequence Continuity Declaration (STREAM_METADATA)
+### 7.4.1 Sequence Continuity Declaration (STREAM_METADATA)
 
 Every STREAM_METADATA event MUST include a sequence_continuity field in its data object declaring the producer's continuity guarantee for this session (P-SEQ-4). (Consumer obligations per value -- C-SEQ-2, C-SEQ-3, C-SEQ-4 -- are specified in Appendix A.7.) Valid values:
 
@@ -1401,11 +1394,11 @@ Every STREAM_METADATA event MUST include a sequence_continuity field in its data
 - **"reset"**
   - Meaning: Producer declares pos.lsn values from this session are NOT comparable to values from any prior session. Counter restarts.
 
-### 8.4.2 In-Stream Discontinuity Signaling (HEARTBEAT)
+### 7.4.2 In-Stream Discontinuity Signaling (HEARTBEAT)
 
 When a sequence or LSN discontinuity occurs mid-session, the producer MUST signal it via the next HEARTBEAT event using two boolean fields: lsn_reset (true if pos.lsn values after this HEARTBEAT are not comparable to values before it) and sequence_reset (true if the CloudEvents sequence counter has restarted or jumped non-monotonically) (P-SEQ-5). A consumer receiving a HEARTBEAT with lsn_reset: true or sequence_reset: true MUST apply the same rules as for sequence_continuity: "reset" in STREAM_METADATA, from the point of the HEARTBEAT forward.
 
-### 8.4.3 Canonical Discontinuity Scenarios
+### 7.4.3 Canonical Discontinuity Scenarios
 
 Scenario 1 -- Database migration or physical source change: When the CDC producer continues streaming after the source database is migrated to a new physical host, the new instance may produce LSN values that are non-comparable with the previous instance. Producer MUST set sequence_continuity: "reset" in the first STREAM_METADATA after migration. (Consumer baseline-reset behavior on this signal is specified in Appendix A.7.)
 
@@ -1417,13 +1410,13 @@ Scenario 4 -- New tables or columns added to capture scope on reconnect: Produce
 
 Scenario 5 -- Multi-master or active-active source topology: Producer MUST set sequence_continuity: "best_effort" for streams from multi-master topologies. The CloudEvents sequence counter is the producer's authoritative emission order in this case -- pos.lsn values are per-node and MUST NOT be compared across nodes -- and yields a consumable total order where the producer declares ordering_scope: "stream" and the consumer receives that sequence as one ordered channel (Section 3.3). Producer SHOULD include originating node identifier in pos.native_position.
 
-### 8.4.4 What the Specification Does Not Govern
+### 7.4.4 What the Specification Does Not Govern
 
 The following are intentionally outside scope: specific LSN normalization algorithms for individual database engines; operational procedures for verifying LSN continuity after failover; monitoring thresholds for acceptable LSN lag or gap rates; vendor-specific GTID formats, binlog file naming, or SCN semantics. The specification defines the output contract and what producers must declare. The implementation path to satisfying that contract is the producer implementer's responsibility.
 
-# 9. DDL Events
+# 8. DDL Events
 
-DDL events are first-class CloudEvents that carry schema change operations in the same logically ordered sequence as DML events. Their emission is governed by the `ddl_capture` capability axis (Section 2.2a). When `ddl_capture` is not `"none"`, the producer MUST emit a DDL event for every source DDL operation that changes a captured table's emission schema, including source operations that create or drop a captured table (P-DDL-1), emitted in source commit order with DML events (Section 6.1, P-ORD-1; per emission channel under P-ORD-1-MC), so that a schema change and the data changes that depend on it are always positionally correlated. This is the coverage floor: DDL events for operations that do not change any emission schema MAY additionally be emitted, and MUST NOT trigger OBJECT_METADATA re-emission or a schema_version increment. The coverage guarantee in every mode extends only to emission-schema-affecting operations: the absence of a DDL event for any other source operation (indexes, storage clauses, grants) means nothing, in any mode. Under `ddl_capture: "none"` no DDL-event coverage is guaranteed at all and schema evolution is conveyed solely by OBJECT_METADATA (Section 4.1); a producer MAY still emit `ddl.*` events opportunistically, and any DDL event it emits, in any mode, MUST conform to Section 9.1 (P-DDL-2). A producer whose source exposes DDL for captured tables in its change interface SHOULD declare and provide at least `ddl_capture: "structural"` (P-DDL-3).
+DDL events are first-class CloudEvents that carry schema change operations in the same logically ordered sequence as DML events. Their emission is governed by the `ddl_capture` capability axis (Section 2.2a). When `ddl_capture` is not `"none"`, the producer MUST emit a DDL event for every source DDL operation that changes a captured table's emission schema, including source operations that create or drop a captured table (P-DDL-1), emitted in source commit order with DML events (Section 6.1, P-ORD-1; per emission channel under P-ORD-1-MC), so that a schema change and the data changes that depend on it are always positionally correlated. This is the coverage floor: DDL events for operations that do not change any emission schema MAY additionally be emitted, and MUST NOT trigger OBJECT_METADATA re-emission or a schema_version increment. The coverage guarantee in every mode extends only to emission-schema-affecting operations: the absence of a DDL event for any other source operation (indexes, storage clauses, grants) means nothing, in any mode. Under `ddl_capture: "none"` no DDL-event coverage is guaranteed at all and schema evolution is conveyed solely by OBJECT_METADATA (Section 4.1); a producer MAY still emit `ddl.*` events opportunistically, and any DDL event it emits, in any mode, MUST conform to Section 8.1 (P-DDL-2). A producer whose source exposes DDL for captured tables in its change interface SHOULD declare and provide at least `ddl_capture: "structural"` (P-DDL-3).
 
 A producer MUST NOT emit a `ddl.*` event for a change that did not occur as a source DDL operation (P-DDL-2). Producer-originated emission-schema changes -- a change to the captured table or column set, to masking, or to type mapping -- are conveyed by OBJECT_METADATA alone (Section 4.1) in every `ddl_capture` mode; synthesizing a DDL event to represent one misattributes a producer configuration change to the source.
 
@@ -1433,9 +1426,9 @@ A producer MUST NOT emit a `ddl.*` event for a change that did not occur as a so
 
 > **Note:** Where the source provides DDL information out-of-band but with a log position (for example, a DDL history table carrying an LSN), the DDL event's position fields MUST reflect that source-provided position. Positional precision is a source characteristic; producers SHOULD document any approximation their source imposes.
 
-## 9.1 DDL Payload Structure
+## 8.1 DDL Payload Structure
 
-A DDL event uses the standard CloudEvents envelope (Section 3.1). Its `data` payload carries the table identity, a `ddl` object whose contents depend on the declared `ddl_capture` mode, and the position object (Section 8.1).
+A DDL event uses the standard CloudEvents envelope (Section 3.1). Its `data` payload carries the table identity, a `ddl` object whose contents depend on the declared `ddl_capture` mode, and the position object (Section 7.1).
 
 Statement content is governed by the declared `ddl_capture` mode, and applies to every DDL event a producer emits in any mode (P-DDL-2). Under `"verbatim"`, `ddl.statement` MUST carry the verbatim source DDL text, never normalized or reconstructed; `statement_truncated` marks text too long to include fully. Under `"structural"`, the `ddl` object MUST be empty: `statement` and `statement_truncated` MUST be omitted, and synthesized or reconstructed SQL presented as a statement is non-conformant. Under `"none"`, an opportunistically emitted DDL event MUST take one of these two shapes: if it carries `statement`, that text MUST be verbatim. The `ddl` object is closed-world in every mode; no other members are defined.
 
@@ -1473,13 +1466,13 @@ Statement content is governed by the declared `ddl_capture` mode, and applies to
 
 This DDL event changes the table's emission schema, so a new OBJECT_METADATA event (schema_version incremented) MUST follow it and precede the next DML event for FINANCE.ORDERS (Section 4.1). A DDL event that does not change the emission schema does not trigger OBJECT_METADATA re-emission and MUST NOT increment schema_version.
 
-## 9.2 dataschema on DDL Events
+## 8.2 dataschema on DDL Events
 
 For a `ddl.CREATE` naming a subject that no OBJECT_METADATA currently governs -- a newly captured table, or a re-created table whose prior incarnation was dropped -- `dataschema` is a *forward reference*: it carries the CloudEvents id of the next OBJECT_METADATA the producer will emit for that subject, and that OBJECT_METADATA MUST precede the subject's first DML event. Under `ordering_scope: "channel"` the CREATE and its governing OBJECT_METADATA MUST be emitted on the same emission channel. This is the only case in which `dataschema` names an event the consumer has not yet received; in every other case it names the most recently emitted OBJECT_METADATA for the table (Section 3.1).
 
-# 10. Lifecycle Events
+# 9. Lifecycle Events
 
-## 10.1 HEARTBEAT
+## 9.1 HEARTBEAT
 
 HEARTBEAT events provide two functions: stream liveness signaling and, in certain topologies, transaction boundary inference.
 
@@ -1513,31 +1506,31 @@ Producers MUST emit HEARTBEAT events periodically during idle periods (no DML ch
 
 #### Single Channel Stream
 
-HEARTBEAT events are interleaved in the data stream alongside DML and DDL events. In a single channel stream they serve a dual role: liveness signaling and transaction completion signaling. A HEARTBEAT received after all events of a transaction confirms that the transaction is complete (T-COMPLETE condition (b), Section 8.3). All single channel producers MUST emit a HEARTBEAT within heartbeat_interval_seconds after any transaction followed by an idle period (T-HEARTBEAT), regardless of whether `session_aware` is true or false. This guarantees that a consumer is never left waiting indefinitely for completion of the last transaction before an idle period. Because completion-by-HEARTBEAT relies only on single channel total ordering (T-NOINTERLEAVE) and not on session awareness, the guarantee holds identically for session-aware and sessionless producers.
+HEARTBEAT events are interleaved in the data stream alongside DML and DDL events. In a single channel stream they serve a dual role: liveness signaling and transaction completion signaling. A HEARTBEAT received after all events of a transaction confirms that the transaction is complete (T-COMPLETE condition (b), Section 7.3). All single channel producers MUST emit a HEARTBEAT within heartbeat_interval_seconds after any transaction followed by an idle period (T-HEARTBEAT), regardless of whether `session_aware` is true or false. This guarantees that a consumer is never left waiting indefinitely for completion of the last transaction before an idle period. Because completion-by-HEARTBEAT relies only on single channel total ordering (T-NOINTERLEAVE) and not on session awareness, the guarantee holds identically for session-aware and sessionless producers.
 
 #### Multi-Channel / Distributed Topologies
 
 In multi-channel deployments, HEARTBEAT events provide liveness signaling but MUST NOT be relied upon for transaction boundary detection across channels. A HEARTBEAT on one emission channel does not guarantee that all events of a transaction have been delivered to other channels.
 
-HEARTBEAT delivery mechanism: A producer MAY emit HEARTBEAT events on its emitted sequence, on a dedicated liveness/control channel, or both; the physical surfacing of HEARTBEATs is a delivery-layer concern (Appendix B). The producer MUST declare the HEARTBEAT interval in STREAM_METADATA (Section 10.4), and SHOULD declare the emission channel arrangement for markers and heartbeats where it is producer-determined. (Consumer liveness-monitoring guidance is in Appendix A.5/A.11.)
+HEARTBEAT delivery mechanism: A producer MAY emit HEARTBEAT events on its emitted sequence, on a dedicated liveness/control channel, or both; the physical surfacing of HEARTBEATs is a delivery-layer concern (Appendix B). The producer MUST declare the HEARTBEAT interval in STREAM_METADATA (Section 9.4), and SHOULD declare the emission channel arrangement for markers and heartbeats where it is producer-determined. (Consumer liveness-monitoring guidance is in Appendix A.5/A.11.)
 
-## 10.2 TRUNCATE
+## 9.2 TRUNCATE
 
-### 10.2.1 Classification and Minimum Contract
+### 9.2.1 Classification and Minimum Contract
 
 TRUNCATE is a DDL-adjacent operation that OpenCDC formally classifies as dml.TRUNCATE -- a DML-category event -- to preserve its position in the transactional event stream alongside INSERT, UPDATE, and DELETE. This classification resolves a real ambiguity: TRUNCATE does not fit cleanly into DDL (because it changes data, not schema) or DML (because it carries no before/after image). A TRUNCATE event denotes the deletion of all rows in the named table; the corresponding consumer obligation is stated in Appendix A.6. In a TRUNCATE event both before and after MUST be null. TRUNCATE events do not generate a new OBJECT_METADATA schema version -- a TRUNCATE does not alter the table's column structure. The mandatory OBJECT_METADATA ordering rule (Section 4.1) applies: OBJECT_METADATA MUST have been emitted before the TRUNCATE event, but the TRUNCATE itself does not trigger a new schema version.
 
-### 10.2.2 Transactional vs. Non-Transactional TRUNCATE
+### 9.2.2 Transactional vs. Non-Transactional TRUNCATE
 
-TRUNCATE has fundamentally different transactional properties by engine. PostgreSQL and SQL Server: TRUNCATE is transactional, participates in the enclosing transaction, can be rolled back, and is WAL-logged or transaction-logged. The TRUNCATE event carries the real source transaction cdcxid. DML events (INSERT, UPDATE, DELETE) MAY appear after a TRUNCATE within the same cdcxid; a TRUNCATE does not terminate the transaction. (Consumer apply order is specified in Appendix A.8.) Oracle and MySQL/MariaDB: TRUNCATE is DDL. It causes an implicit COMMIT before executing and cannot be rolled back. Because there is no enclosing source transaction, producers MUST assign a synthetic cdcxid to these TRUNCATE events. The synthetic cdcxid MUST be unique, stable across replay, and documented by the producer (P-TRUNC-3). These events will never co-occur with DML events in the same cdcxid. See Section 8.3 for the full transaction boundary rules for both cases.
+TRUNCATE has fundamentally different transactional properties by engine. PostgreSQL and SQL Server: TRUNCATE is transactional, participates in the enclosing transaction, can be rolled back, and is WAL-logged or transaction-logged. The TRUNCATE event carries the real source transaction cdcxid. DML events (INSERT, UPDATE, DELETE) MAY appear after a TRUNCATE within the same cdcxid; a TRUNCATE does not terminate the transaction. (Consumer apply order is specified in Appendix A.8.) Oracle and MySQL/MariaDB: TRUNCATE is DDL. It causes an implicit COMMIT before executing and cannot be rolled back. Because there is no enclosing source transaction, producers MUST assign a synthetic cdcxid to these TRUNCATE events. The synthetic cdcxid MUST be unique, stable across replay, and documented by the producer (P-TRUNC-3). These events will never co-occur with DML events in the same cdcxid. See Section 7.3 for the full transaction boundary rules for both cases.
 
-### 10.2.3 Multi-Table TRUNCATE
+### 9.2.3 Multi-Table TRUNCATE
 
 PostgreSQL and certain other engines support a single TRUNCATE statement that explicitly names multiple tables (e.g., TRUNCATE table_a, table_b, table_c;). For multi-table TRUNCATE, producers MUST emit one TRUNCATE event per named table. All events MUST share the same cdcxid and MUST be assigned sequential cdctxorder values (0, 1, 2, ...) per P-ORD-7 (P-TRUNC-2). Multi-table TRUNCATE (explicit, single SQL statement) is distinct from CASCADE-propagated truncation (implicit, triggered by foreign key relationships). Both produce multiple TRUNCATE events sharing a cdcxid, but they are different mechanisms with different consumer implications. The multi_table flag in truncate_details signals the explicit case; the cascade flag signals CASCADE behavior.
 
-### 10.2.4 Payload Structure
+### 9.2.4 Payload Structure
 
-TRUNCATE events carry the standard DML payload envelope fields. primary_key MUST be populated. before and after MUST both be null. _null_columns and _lob_overflow MUST be present and MUST be empty arrays (P-TRUNC-1). The pos object MUST be populated per Section 8.1. The optional truncate_details object (Section 10.2.5) MAY be present when the producer can observe execution-time semantics from the source engine.
+TRUNCATE events carry the standard DML payload envelope fields. primary_key MUST be populated. before and after MUST both be null. _null_columns and _lob_overflow MUST be present and MUST be empty arrays (P-TRUNC-1). The pos object MUST be populated per Section 7.1. The optional truncate_details object (Section 9.2.5) MAY be present when the producer can observe execution-time semantics from the source engine.
 
 ```
 // -- PostgreSQL: TRUNCATE finance.audit_log CASCADE RESTART IDENTITY; --
@@ -1613,7 +1606,7 @@ TRUNCATE events carry the standard DML payload envelope fields. primary_key MUST
 }
 ```
 
-### 10.2.5 The truncate_details Object
+### 9.2.5 The truncate_details Object
 
 truncate_details is an OPTIONAL object within the TRUNCATE event's data payload. It SHOULD be populated by producers when the source engine exposes the relevant execution-time semantics at the capture layer. It MUST be omitted when the producer cannot reliably determine the values -- producers MUST NOT fabricate or assume flag values (P-TRUNC-4). An absent truncate_details is always valid; a truncate_details with incorrect values is a conformance violation.
 
@@ -1621,7 +1614,7 @@ truncate_details is an OPTIONAL object within the TRUNCATE event's data payload.
 Type: true | false | "not_applicable" | "unknown". Whether the TRUNCATE cascaded to related tables via foreign key relationships. true means CASCADE was active and propagated to one or more related tables. false means RESTRICT was active or CASCADE was not specified and did not propagate. "not_applicable" means the source engine does not support cascading truncation as a concept. "unknown" means the engine supports CASCADE but the producer could not determine from the capture layer whether it was active. Engine guidance: PostgreSQL: true (TRUNCATE ... CASCADE) or false (TRUNCATE ... RESTRICT or default -- RESTRICT is the default). Oracle: always "not_applicable". MySQL/MariaDB: always "not_applicable". SQL Server: always "not_applicable". IBM Db2: always "not_applicable".
 
 **sequence_reset**
-Type: true | false | "not_applicable" | "unknown". Whether the table's identity, auto-increment, or sequence counter was reset as part of this TRUNCATE. true means the counter was reset to its initial value. false means the counter was preserved. "not_applicable" means the source engine has no table-attached identity or sequence concept (sequences are independent objects, not column properties). "unknown" means the engine supports identity reset but the producer could not determine the actual behavior. DISAMBIGUATION: This field reuses the name sequence_reset that also appears in HEARTBEAT events (Section 10.1). These are DISTINCT concepts: HEARTBEAT.sequence_reset signals a discontinuity in the CloudEvents stream-level sequence counter; truncate_details.sequence_reset signals a reset of the source table's identity or auto-increment column counter. Implementations MUST NOT conflate these two fields. Engine guidance: PostgreSQL: true (TRUNCATE ... RESTART IDENTITY) or false (TRUNCATE ... CONTINUE IDENTITY or default -- CONTINUE IDENTITY is the default). MySQL/MariaDB: always true -- MySQL TRUNCATE always resets AUTO_INCREMENT to the column's defined start value; there is no option to suppress this. Oracle: always "not_applicable" -- sequences are independent schema objects with no connection to TRUNCATE TABLE. SQL Server: false -- TRUNCATE TABLE does not reset IDENTITY columns and there is no option to trigger a reset via TRUNCATE. IBM Db2: false -- TRUNCATE TABLE does not reset GENERATED ALWAYS or GENERATED BY DEFAULT identity column values.
+Type: true | false | "not_applicable" | "unknown". Whether the table's identity, auto-increment, or sequence counter was reset as part of this TRUNCATE. true means the counter was reset to its initial value. false means the counter was preserved. "not_applicable" means the source engine has no table-attached identity or sequence concept (sequences are independent objects, not column properties). "unknown" means the engine supports identity reset but the producer could not determine the actual behavior. DISAMBIGUATION: This field reuses the name sequence_reset that also appears in HEARTBEAT events (Section 9.1). These are DISTINCT concepts: HEARTBEAT.sequence_reset signals a discontinuity in the CloudEvents stream-level sequence counter; truncate_details.sequence_reset signals a reset of the source table's identity or auto-increment column counter. Implementations MUST NOT conflate these two fields. Engine guidance: PostgreSQL: true (TRUNCATE ... RESTART IDENTITY) or false (TRUNCATE ... CONTINUE IDENTITY or default -- CONTINUE IDENTITY is the default). MySQL/MariaDB: always true -- MySQL TRUNCATE always resets AUTO_INCREMENT to the column's defined start value; there is no option to suppress this. Oracle: always "not_applicable" -- sequences are independent schema objects with no connection to TRUNCATE TABLE. SQL Server: false -- TRUNCATE TABLE does not reset IDENTITY columns and there is no option to trigger a reset via TRUNCATE. IBM Db2: false -- TRUNCATE TABLE does not reset GENERATED ALWAYS or GENERATED BY DEFAULT identity column values.
 
 **multi_table**
 Type: true | false. Whether this TRUNCATE event is one of multiple TRUNCATE events produced from a single source SQL statement that explicitly named multiple tables. true means this event shares its cdcxid with other TRUNCATE events from the same statement. false means this TRUNCATE statement named only this one table. This field signals the explicit multi-table case only and does NOT indicate CASCADE-propagated implicit truncation -- see the cascade field for that.
@@ -1632,17 +1625,17 @@ The enumeration of tables that were implicitly truncated via CASCADE (a propagat
 **Flag Value Summary**
 cascade -- true: CASCADE was active; false: RESTRICT was active or default; "not_applicable": engine has no CASCADE truncation concept; "unknown": engine supports it but producer could not determine from log. sequence_reset -- true: counter was reset; false: counter was preserved; "not_applicable": engine has no table-attached identity/sequence concept; "unknown": engine supports it but producer could not determine from log. multi_table -- true: one of N tables in a single explicit statement; false: single-table statement. (multi_table does not use "not_applicable" or "unknown" -- it is always a deterministic boolean.)
 
-### 10.2.6 Schema Registry and Closed-World Note
+### 9.2.6 Schema Registry and Closed-World Note
 
 The truncate_details object is a defined, versioned payload field in the OpenCDC specification. Its presence in a TRUNCATE event's data payload does not constitute an "unrecognized field" under C-VAL-2 -- conformant consumers that have implemented the full OpenCDC specification will recognize it by definition. The additionalProperties: false enforcement in C-VAL-2 applies to the before/after row value objects governed by the table's json_schema in OBJECT_METADATA, not to the top-level fields of the TRUNCATE data payload, which are governed by the OpenCDC specification directly. (How minimum-profile consumers that have not implemented TRUNCATE handle truncate_details -- ignore rather than reject, per C-TRUNC-3 -- is specified in Appendix A.8.)
 
-## 10.3 SNAPSHOT (Initial Load)
+## 9.3 SNAPSHOT (Initial Load)
 
 Initial load events use type com.{org}.cdc.snapshot.READ. They carry the same before/after structure as DML events: before MUST be null; after MUST contain the full row. SNAPSHOT events MUST NOT be mixed with DML events in the same transaction group -- they MUST use a distinct cdcxid value (e.g., "snapshot:{table}:{batch_id}").
 
-Initial-load ordering and completion (P-SNAP-1): for any table whose stream begins with an initial load, the producer MUST deliver that table's SNAPSHOT events before the first steady-state DML event for the same table, and MUST signal initial-load completion for the table -- either by emitting a final SNAPSHOT event carrying a `snapshot_complete: true` marker in its payload, or by the transition to the first DML `cdcxid` for that table. The producer MUST declare in STREAM_METADATA whether the stream includes an initial-load phase. Steady-state ordering guarantees (Section 8) apply only from the first post-snapshot DML event onward. (Consumer handling of the snapshot-to-steady-state transition is described in Appendix A.8.)
+Initial-load ordering and completion (P-SNAP-1): for any table whose stream begins with an initial load, the producer MUST deliver that table's SNAPSHOT events before the first steady-state DML event for the same table, and MUST signal initial-load completion for the table -- either by emitting a final SNAPSHOT event carrying a `snapshot_complete: true` marker in its payload, or by the transition to the first DML `cdcxid` for that table. The producer MUST declare in STREAM_METADATA whether the stream includes an initial-load phase. Steady-state ordering guarantees (Section 7) apply only from the first post-snapshot DML event onward. (Consumer handling of the snapshot-to-steady-state transition is described in Appendix A.8.)
 
-## 10.4 STREAM_METADATA
+## 9.4 STREAM_METADATA
 
 STREAM_METADATA events carry stream-level information that consumers need to configure their processing behavior. They provide the consumer with producer identity, spec version, stream configuration, and the capability-axis declarations defined in Section 2.2a (whose Authority Table governs who supplies each value and how the producer validates and defaults it).
 
@@ -1656,18 +1649,18 @@ Every STREAM_METADATA event MUST contain the following fields in its data object
 - **tables**: Array of table identifiers captured in this stream (the *captured tables*; see Terms and Definitions)
 - **heartbeat_interval_seconds**: Integer; default 30. Maximum idle interval before HEARTBEAT emission
 - **ordering_scope**: `"stream"` or `"channel"` -- whether the producer emits one globally ordered sequence, or guarantees order only within each emission channel. MUST be declared (P-SCOPE-1); the conservative value when in doubt is `"channel"` (P-SCOPE-2). Producer-determined (emission semantics; Section 2.2a).
-- **transaction_interleaving**: `"none"` or `"possible"` -- whether events of different transactions can arrive interspersed at a consumption point. MUST be declared (P-ILV-1); the conservative value when in doubt is `"possible"` (P-ILV-2). Governs the completion strategy (Section 8.3) and the TRX_COMMIT obligation (Section 10.5). Producer-determined (emission semantics; Section 2.2a).
+- **transaction_interleaving**: `"none"` or `"possible"` -- whether events of different transactions can arrive interspersed at a consumption point. MUST be declared (P-ILV-1); the conservative value when in doubt is `"possible"` (P-ILV-2). Governs the completion strategy (Section 7.3) and the TRX_COMMIT obligation (Section 9.5). Producer-determined (emission semantics; Section 2.2a).
 - **sequence_continuity**: Declares position comparability across session boundaries ("guaranteed", "best_effort", or "reset") (P-SEQ-4). Producer-determined (emission), constrained by source position semantics and deployment topology.
 
 The following fields have defined defaults and MAY be omitted; absence MUST be interpreted as the default (Defaults and Silence, Section 2.2a):
 
 - **schema_delivery**: Object declaring active schema modes. `schema_on_change` MUST be present and true (P-SCHEMA-1). The remaining modes (`schema_on_reconnect`, `schema_on_each_event`, `schema_by_reference`) default to `false` when absent; a producer declares only the modes it deviates into. Reconnect-coverage (P-SCHEMA-2, P-SCHEMA-4) applies to the *effective* values.
 - **session_aware**: Boolean; absent = `false`. `true` if the producer can detect consumer connection and disconnection events (e.g., the transport provides session lifecycle callbacks); `false` if the producer publishes events without knowledge of consumer state. Declares whether session-scoped behaviors (Schema on Reconnect via in-stream re-emission, STREAM_METADATA as first event per session) are provided. (Consumer use of this field is described in Appendix A.1.) See Appendix B for transport mapping examples.
-- **transaction_boundaries**: Completion-marker mode -- "none", "commit_all", or "commit_multi_event" (Section 10.5). Absent defaults to "none". `"commit_multi_event"` is legal only under `transaction_interleaving: "none"`, where next-key or HEARTBEAT ordering proves completion of markerless single-event transactions; under `"possible"` the value MUST be `"commit_all"`. For streams declaring `transaction_interleaving: "possible"` the value MUST NOT be "none" (P-TRX-1).
+- **transaction_boundaries**: Completion-marker mode -- "none", "commit_all", or "commit_multi_event" (Section 9.5). Absent defaults to "none". `"commit_multi_event"` is legal only under `transaction_interleaving: "none"`, where next-key or HEARTBEAT ordering proves completion of markerless single-event transactions; under `"possible"` the value MUST be `"commit_all"`. For streams declaring `transaction_interleaving: "possible"` the value MUST NOT be "none" (P-TRX-1).
 - **transaction_marker_delivery**: For streams declaring `transaction_interleaving: "possible"`, declares where TRX_COMMIT markers are delivered -- "transaction_metadata_channel" (a dedicated logical channel) or "per_channel". (Under `ordering_scope: "stream"` with "possible" interleaving, the stream's one channel and a dedicated metadata channel may coincide; either declared value is then acceptable and consumers treat them identically.) The marker remains an in-band logical event; physical transport coordinates are never embedded.
 - **transaction_visibility**: Declares stream visibility -- "committed_only" (the only value defined in this revision). SHOULD be declared; absent MUST default to "committed_only" (P-TRX-6). A future visibility mode may make uncommitted-transaction records visible; the value space is reserved so that consumers which understand such a future mode can opt into processing uncommitted records (with appropriate rollback handling) rather than fail. Until such a mode is defined, an unrecognized value is handled per C-TRX-1.
 - **bidirectional**: Boolean; absent = `false`. `true` declares this producer is one leg of a bidirectional (active-active) pair, binding the loop-suppression obligation (Section 3.4, P-LOOP-1).
-- **ddl_capture**: `"verbatim"`, `"structural"`, or `"none"`; absent = `"none"`. Declares whether source DDL operations affecting captured tables' emission schemas are surfaced as DDL events (Section 9), and whether statement text is carried verbatim. Values other than `"none"` bind P-DDL-1 and P-DDL-2. Never affects the OBJECT_METADATA obligation (Section 4.1). Producer-determined (emission), ceilinged by the source's change interface; the conservative value when unconfigured is `"none"`.
+- **ddl_capture**: `"verbatim"`, `"structural"`, or `"none"`; absent = `"none"`. Declares whether source DDL operations affecting captured tables' emission schemas are surfaced as DDL events (Section 8), and whether statement text is carried verbatim. Values other than `"none"` bind P-DDL-1 and P-DDL-2. Never affects the OBJECT_METADATA obligation (Section 4.1). Producer-determined (emission), ceilinged by the source's change interface; the conservative value when unconfigured is `"none"`.
 - **capture_mode**: OPTIONAL informational string identifying the capture technique (e.g., "logminer", "wal", "binlog"). Informational only; consumers derive no behavior from it.
 
 #### Single Channel Stream
@@ -1703,19 +1696,19 @@ When `session_aware` is false, the producer cannot detect consumer connections; 
 
 When session_aware is false, the producer emits STREAM_METADATA as an ordinary event in its sequence; it cannot deliver it per-session. How STREAM_METADATA is then made discoverable to consumers -- via a control channel, transport metadata (e.g., an object-storage manifest), or as the first record per channel -- is a delivery-layer concern, defined per transport in binding documents and illustrated informatively in Appendix B. The producer's payload-level obligations are: emit STREAM_METADATA at stream start and re-emit it whenever stream configuration changes (tables added or removed, schema delivery mode changed), with identical content regardless of how the delivery layer surfaces it. (Consumers read STREAM_METADATA before processing data events; see Appendix A.1, and for Kafka transports, Appendix B.4.)
 
-## 10.5 TRX_COMMIT (Transaction Completeness Marker)
+## 9.5 TRX_COMMIT (Transaction Completeness Marker)
 
-TRX_COMMIT is a lifecycle event that gives consumers a deterministic transaction-completeness signal. It is OPTIONAL when `transaction_interleaving: "none"` is declared (completion of the emitted sequence is reliably inferred from ordering, Section 8.3) and MANDATORY when `transaction_interleaving: "possible"` is declared (P-TRX-1), where ordering cannot signal completion. The trigger is the emission interleaving guarantee, not channel count. Additionally, a producer that does not itself deliver events to consumers SHOULD emit TRX_COMMIT markers even under a "none" declaration (P-TRX-7): markers are the only completion mechanism that survives an intermediary delivery layer whose preservation of emitted order and contiguity this specification does not govern (Section 2.2a, Scope of Declarations).
+TRX_COMMIT is a lifecycle event that gives consumers a deterministic transaction-completeness signal. It is OPTIONAL when `transaction_interleaving: "none"` is declared (completion of the emitted sequence is reliably inferred from ordering, Section 7.3) and MANDATORY when `transaction_interleaving: "possible"` is declared (P-TRX-1), where ordering cannot signal completion. The trigger is the emission interleaving guarantee, not channel count. Additionally, a producer that does not itself deliver events to consumers SHOULD emit TRX_COMMIT markers even under a "none" declaration (P-TRX-7): markers are the only completion mechanism that survives an intermediary delivery layer whose preservation of emitted order and contiguity this specification does not govern (Section 2.2a, Scope of Declarations).
 
-### 10.5.1 Emission modes
+### 9.5.1 Emission modes
 
-The producer declares `transaction_boundaries` in STREAM_METADATA (Section 10.4):
+The producer declares `transaction_boundaries` in STREAM_METADATA (Section 9.4):
 
 - **none** -- no markers. Legal only when `transaction_interleaving: "none"` is declared.
 - **commit_all** -- a TRX_COMMIT for every transaction, including solitary synthetic single-event transactions (e.g., Oracle non-transactional TRUNCATE).
-- **commit_multi_event** -- markers only for transactions with `event_count` >= 2. Because the mode is declared, the absence of a marker after a single-event transaction is expected, not a gap. This mode is valid only under `transaction_interleaving: "none"`, where completion of a markerless single-event transaction is still provable from ordering (next cdcxid or HEARTBEAT, Section 8.3); under `"possible"` it is non-conformant and `commit_all` MUST be used (P-TRX-1).
+- **commit_multi_event** -- markers only for transactions with `event_count` >= 2. Because the mode is declared, the absence of a marker after a single-event transaction is expected, not a gap. This mode is valid only under `transaction_interleaving: "none"`, where completion of a markerless single-event transaction is still provable from ordering (next cdcxid or HEARTBEAT, Section 7.3); under `"possible"` it is non-conformant and `commit_all` MUST be used (P-TRX-1).
 
-### 10.5.2 Envelope rules
+### 9.5.2 Envelope rules
 
 - `type` = `com.{org}.cdc.meta.TRX_COMMIT`; `source` = the transaction's DML `source`; `time` = source commit timestamp.
 - `id` MUST be stream-unique and replay-stable (e.g., `txn-{cdcxid}-commit`).
@@ -1723,7 +1716,7 @@ The producer declares `transaction_boundaries` in STREAM_METADATA (Section 10.4)
 - `cdctxorder` MUST NOT be present (the marker is outside the DML/DDL ordinal space).
 - `cdcpos` MUST be present. `subject` MUST be omitted. `partitionkey` is OPTIONAL/advisory.
 
-### 10.5.3 Payload
+### 9.5.3 Payload
 
 ```json
 {
@@ -1742,18 +1735,18 @@ The producer declares `transaction_boundaries` in STREAM_METADATA (Section 10.4)
 - **distribution** (SHOULD): a map of `subject` -> per-table distinct-ordinal count; values MUST sum to `event_count` when present (P-TRX-4). This field is semantically equivalent to Debezium's transaction-metadata `data_collections`; the name `distribution` is retained for clarity. It lets topic-filtered / per-channel consumers verify completeness for the subset they read.
 - **pos** (MUST): a standard structured position block positioned at or after the transaction's last event.
 
-### 10.5.4 Layering and replay
+### 9.5.4 Layering and replay
 
 TRX_COMMIT is an OpenCDC-layer logical marker; it does not depend on, and MUST NOT embed, transport-level transaction mechanisms (e.g., Kafka transactions / KIP-98) or physical coordinates. A replay window that includes any event of transaction X MUST also deliver X's TRX_COMMIT (when markers are in effect), with a stable `id` and identical `event_count` (R-POS-6).
 
 
 - P-RET-1 (Marker availability parity) -- Delivery-layer obligation (binding-defined): TRX_COMMIT markers MUST remain available for at least as long as the data events they complete. On any transport, marker retention/availability MUST be greater than or equal to the retention of every data channel the markers cover; a replay window that includes data events MUST include their markers (see also R-POS-6).
 
-# 11. Idempotency and Deduplication
+# 10. Idempotency and Deduplication
 
 OpenCDC guarantees at-least-once delivery. Duplicate events are an expected condition in failure and reconnect scenarios. Both producers and consumers have obligations.
 
-## 11.1 Deduplication Key
+## 10.1 Deduplication Key
 
 OpenCDC uses two distinct identity mechanisms that serve different purposes. Conflating them is a common implementation error:
 
@@ -1774,7 +1767,7 @@ OpenCDC uses two distinct identity mechanisms that serve different purposes. Con
 
 No two conformant events from the same source may share the same id. (Consumer deduplication behavior -- apply once, silently discard duplicates -- is specified in Appendix A.6.)
 
-## 11.2 Producer Obligations for Idempotency
+## 10.2 Producer Obligations for Idempotency
 
 - P-IDEM-1: Producers MUST assign a stable UUID v4 id to each event at creation time.
 
@@ -1782,7 +1775,7 @@ No two conformant events from the same source may share the same id. (Consumer d
 
 - Producers SHOULD persist event IDs in durable storage before emitting, so that a producer crash and restart does not result in duplicate events with different IDs for the same source operation.
 
-# 12. Transport Bindings
+# 11. Transport Bindings
 
 CloudEvents defines two content modes. OpenCDC supports both. Transport binding is an infrastructure decision that does not affect payload compatibility. A stream that is conformant in structured mode is also conformant in binary mode -- the same events, different wire framing.
 
@@ -1798,11 +1791,11 @@ Transport-specific normative rules do not appear in this core specification; the
 
 Arrow Flight is a third transport option for implementations where databases emit OpenCDC events directly over gRPC/TLS. In Arrow Flight mode, OpenCDC events are carried in Arrow record batches. The event envelope fields map to Arrow schema metadata; the data payload maps to Arrow record columns. The full payload specification is identical -- only the wire framing changes.
 
-# 13. Observability
+# 12. Observability
 
 OpenCDC defines optional fields to support distributed tracing and event correlation across complex pipeline topologies. These fields are OPTIONAL for producers but RECOMMENDED for any deployment where events flow through more than one processing stage.
 
-## 13.1 Trace Context
+## 12.1 Trace Context
 
 - **trace_id**
   - Location: CloudEvents extension attribute
@@ -1836,11 +1829,11 @@ OpenCDC defines optional fields to support distributed tracing and event correla
 }
 ```
 
-# 14. Security
+# 13. Security
 
-OpenCDC's normative security surface is limited to what affects the **wire contract** and **producer emission decisions** -- the things this producer-focused specification can define and an implementer can test. Transport-plane security (encryption, mutual authentication) is a property of the transport binding, not of the OpenCDC format; it is covered as informative guidance in Section 14.2. This keeps the specification consistent with its Infrastructure Independence principle (Section 2.1) and with the CloudEvents convention of deferring transport security to the binding.
+OpenCDC's normative security surface is limited to what affects the **wire contract** and **producer emission decisions** -- the things this producer-focused specification can define and an implementer can test. Transport-plane security (encryption, mutual authentication) is a property of the transport binding, not of the OpenCDC format; it is covered as informative guidance in Section 13.2. This keeps the specification consistent with its Infrastructure Independence principle (Section 2.1) and with the CloudEvents convention of deferring transport security to the binding.
 
-## 14.1 Producer Security Rules (Normative)
+## 13.1 Producer Security Rules (Normative)
 
 - S-AUTH-2: Credentials MUST NOT be embedded in event payloads or CloudEvents extension attributes. Authentication material belongs to the transport, never to the event.
 
@@ -1848,7 +1841,7 @@ OpenCDC's normative security surface is limited to what affects the **wire contr
 
 - S-AUTHZ-2: A producer SHOULD support column-level masking or exclusion for columns containing PII or sensitive data, configured per consumer identity. Masked columns MUST appear in the OBJECT_METADATA schema as their original source_type but with a masking indicator, and MUST emit a sentinel value (e.g., null or a fixed mask string) in DML payloads. (This is a wire-contract rule: it constrains OBJECT_METADATA and DML payload content.)
 
-## 14.2 Security & Privacy Considerations (Informative)
+## 13.2 Security & Privacy Considerations (Informative)
 
 This section states the security floor for an OpenCDC deployment and defers the mechanism to the transport binding. It does not add format conformance requirements.
 
@@ -1858,13 +1851,13 @@ This section states the security floor for an OpenCDC deployment and defers the 
 
 **Data sensitivity.** In regulated environments (GDPR, HIPAA, PCI-DSS) the stream itself is regulated data. Implementers should assess whether the transport path stays within the data's authorized processing boundary, whether stream storage applies the same access controls as the source database, and whether replay/historical retrieval is subject to the same retention and deletion obligations as the source system.
 
-# 15. Operational Modes
+# 14. Operational Modes
 
 OpenCDC events may be used in two distinct operational modes that have different requirements for durability, replay, and data loss tolerance. Implementations MUST declare which mode(s) they support. A single deployment MAY operate in both modes simultaneously for different consumer types.
 
 > Consumer-side obligations for Durable and Ephemeral modes (resume-position persistence, idempotent apply, gap detection, schema-before-decode, gap tolerance) are non-normative; see Appendix A.7/A.6/A.4/A.2/A.11.
 
-## 15.1 Durable Mode
+## 14.1 Durable Mode
 
 Durable Mode is the default and primary mode for OpenCDC. It is required for all use cases where data loss is unacceptable: database replication, lakehouse ingestion, and any consumer that maintains a persistent target state.
 
@@ -1881,7 +1874,7 @@ Durable Mode is the default and primary mode for OpenCDC. It is required for all
 - **Schema availability**
   - Producer Obligation: MUST guarantee schema availability for replay (Section 6.4).
 
-## 15.2 Ephemeral Mode
+## 14.2 Ephemeral Mode
 
 Ephemeral Mode is appropriate for use cases where real-time event delivery is the priority and brief data loss is explicitly acceptable — reactive AI-agent pipelines, live dashboards, alerting systems, and monitoring feeds — where a gap in coverage does not constitute a data integrity failure.
 
@@ -1901,13 +1894,9 @@ Ephemeral Mode is appropriate for use cases where real-time event delivery is th
 
 Even in Ephemeral Mode, where data loss is acceptable, schema delivery (OBJECT_METADATA before first DML) remains a MUST. A consumer that receives a DML event without a cached schema cannot decode the values -- this is not a data loss scenario, it is a parsing failure. Producers in Ephemeral Mode MUST still ensure schema availability per Section 6.4. The schema is not stream data -- it is the key to interpreting stream data.
 
-# 16. Implementation Safety Notes
+# 15. Normative Summary
 
-The production-deployment best practices formerly recorded here (schema-mismatch logging, ordering-gap detection, replay consistency checks, sequence-continuity monitoring, HEARTBEAT-lag monitoring, duplicate-rate tracking, and type-decode error isolation) are operational guidance for implementers rather than producer conformance requirements. They are collected, together with the consumer service-level guidance, in Appendix A.11 (Service levels, operational modes, and monitoring).
-
-# 17. Normative Summary
-
-This summary lists the producer (and bilateral) conformance requirements. Conformance is capability-scoped: a producer satisfies the rules that apply to the capabilities it declares in STREAM_METADATA (ordering_scope, transaction_interleaving, transaction_boundaries, session_aware, schema_delivery, sequence_continuity, bidirectional, ddl_capture), not necessarily every rule in the document (see Section 19). Consumer obligations (C-* and consumer-side R-*) are non-normative and are defined as a consumer parse pipeline in Appendix A; they are not listed here. SHOULD requirements are register-only -- see the relevant section for the complete normative text.
+This summary lists the producer (and bilateral) conformance requirements. Conformance is capability-scoped: a producer satisfies the rules that apply to the capabilities it declares in STREAM_METADATA (ordering_scope, transaction_interleaving, transaction_boundaries, session_aware, schema_delivery, sequence_continuity, bidirectional, ddl_capture), not necessarily every rule in the document (see Section 16). Consumer obligations (C-* and consumer-side R-*) are non-normative and are defined as a consumer parse pipeline in Appendix A; they are not listed here. SHOULD requirements are register-only -- see the relevant section for the complete normative text.
 
 - **P-ORD-1**
   - Requirement: Emit events in source commit order (grouped by transaction, in source commit sequence; cdctxorder within each)
@@ -1937,7 +1926,7 @@ This summary lists the producer (and bilateral) conformance requirements. Confor
 - **P-ORD-7**
   - Requirement: Multi-table TRUNCATE: one TRUNCATE event per named table; all events share the same cdcxid with sequential cdctxorder values
   - Who: Producer
-  - Section: 6.1, 10.2.3
+  - Section: 6.1, 9.2.3
 
 - **P-TYPE-1**
   - Requirement: source_type carries verbatim DDL -- no normalization
@@ -1987,67 +1976,67 @@ This summary lists the producer (and bilateral) conformance requirements. Confor
 - **T-COMPLETE**
   - Requirement: Transaction complete when new cdcxid (or HEARTBEAT) observed after last event in group
   - Who: Producer
-  - Section: 8.3
+  - Section: 7.3
 
 - **T-NOINTERLEAVE**
   - Requirement: When `transaction_interleaving: "none"` is declared, events of different transactions MUST NOT be interleaved within each emission channel; stream-wide when `ordering_scope: "stream"` is also declared. Producers declaring `transaction_interleaving: "possible"` are exempt and MUST emit TRX_COMMIT markers instead (P-TRX-1).
   - Who: Producer
-  - Section: 8.3
+  - Section: 7.3
 
 - **T-ORDER**
   - Requirement: cdctxorder MUST be gapless and monotonic within a transaction
   - Who: Producer
-  - Section: 8.3
+  - Section: 7.3
 
 - **T-HEARTBEAT**
   - Requirement: Producer MUST emit HEARTBEAT within heartbeat_interval_seconds after idle transaction
   - Who: Producer
-  - Section: 8.3
+  - Section: 7.3
 
 - **P-IDEM-1**
   - Requirement: Stable UUID id assigned at creation; same id during replay
   - Who: Producer
-  - Section: 11.2
+  - Section: 10.2
 
 - **R-POS-0**
   - Requirement: Ordering is guaranteed within a transaction by cdctxorder; the CloudEvents sequence field yields cross-transaction total order only within a session where ordering_scope: "stream" is declared and the consumer receives it as one ordered channel (Section 3.3), otherwise per-channel order plus cdcxid/cdctxorder/markers applies; partitionkey is an optional routing hint, not the ordering anchor
   - Who: Producer
-  - Section: 8.2
+  - Section: 7.2
 
 - **R-POS-2**
   - Requirement: Provide cdcpos on resume; producer replays from schema event
   - Who: Both
-  - Section: 8.2
+  - Section: 7.2
 
 - **R-POS-3**
   - Requirement: cdcpos is the authoritative resume handle; the payload pos object serves consumer-side ordering logic; both MUST be maintained
   - Who: Both
-  - Section: 8.2
+  - Section: 7.2
 
 - **R-POS-4**
   - Requirement: Replay preserves original event order
   - Who: Producer
-  - Section: 8.2
+  - Section: 7.2
 
 - **R-POS-5**
   - Requirement: At-least-once delivery is the minimum guarantee; duplicate events are permitted during replay
   - Who: Producer
-  - Section: 8.2
+  - Section: 7.2
 
 - **P-TRX-7**
   - Requirement: Producers that do not deliver directly to consumers SHOULD emit TRX_COMMIT markers regardless of interleaving declaration
   - Who: Producer
-  - Section: 10.5, 2.2a
+  - Section: 9.5, 2.2a
 
 - **S-AUTH-2**
   - Requirement: Credentials MUST NOT be embedded in event payloads or CloudEvents extension attributes
   - Who: Producer
-  - Section: 14.1
+  - Section: 13.1
 
 - **P-SNAP-1**
   - Requirement: Initial load: SNAPSHOT events for a table precede its first steady-state DML; producer signals initial-load completion (snapshot_complete or first DML cdcxid) and declares the initial-load phase in STREAM_METADATA
   - Who: Producer
-  - Section: 10.3
+  - Section: 9.3
 
 - **P-SCHEMA-1**
   - Requirement: schema_on_change MUST always be true in STREAM_METADATA schema_delivery
@@ -2062,7 +2051,7 @@ This summary lists the producer (and bilateral) conformance requirements. Confor
 - **P-SCHEMA-3**
   - Requirement: schema_delivery object MUST be present in every STREAM_METADATA event
   - Who: Producer
-  - Section: 4.4, 10.4
+  - Section: 4.4, 9.4
 
 - **P-SCHEMA-4**
   - Requirement: If schema_on_reconnect: false, then schema_on_each_event MUST be true
@@ -2097,47 +2086,47 @@ This summary lists the producer (and bilateral) conformance requirements. Confor
 - **P-SEQ-4**
   - Requirement: sequence_continuity MUST be present in every STREAM_METADATA event
   - Who: Producer
-  - Section: 8.4.1, 10.4
+  - Section: 7.4.1, 9.4
 
 - **P-SEQ-5**
   - Requirement: When LSN or sequence continuity breaks mid-session, producer MUST emit HEARTBEAT with lsn_reset or sequence_reset
   - Who: Producer
-  - Section: 8.4.2
+  - Section: 7.4.2
 
 - **P-SEQ-6**
   - Requirement: pos.lsn MUST be monotonically increasing within a session unless lsn_reset: true or sequence_continuity: "reset" or "best_effort" has been signaled; comparability across session or reset boundaries is not guaranteed
   - Who: Producer
-  - Section: 8.1, 8.4
+  - Section: 7.1, 7.4
 
 - **P-TRUNC-1**
   - Requirement: When emitting a TRUNCATE event, before and after MUST be null; _null_columns and _lob_overflow MUST be present and empty; primary_key MUST be populated
   - Who: Producer
-  - Section: 10.2.4
+  - Section: 9.2.4
 
 - **P-TRUNC-2**
   - Requirement: For multi-table TRUNCATE (single SQL statement naming multiple tables), producer MUST emit one TRUNCATE event per table; all events MUST share the same cdcxid; cdctxorder MUST be sequential (0, 1, 2, ...)
   - Who: Producer
-  - Section: 6.1, 10.2.3
+  - Section: 6.1, 9.2.3
 
 - **P-TRUNC-3**
   - Requirement: For non-transactional TRUNCATE (Oracle, MySQL), producer MUST assign a synthetic cdcxid that is unique, stable across replay, and documented
   - Who: Producer
-  - Section: 10.2.2, 8.3
+  - Section: 9.2.2, 7.3
 
 - **P-TRUNC-4**
   - Requirement: If a producer emits TRUNCATE events and the source engine exposes truncate execution options, the producer SHOULD populate truncate_details; producers MUST NOT fabricate flag values that cannot be determined from the capture layer
   - Who: Producer
-  - Section: 10.2.5, 2.8
+  - Section: 9.2.5, 2.8
 
 - **P-SCOPE-1**
   - Requirement: Declare ordering_scope ("stream"/"channel") in STREAM_METADATA
   - Who: Producer
-  - Section: 2.2a, 10.4
+  - Section: 2.2a, 9.4
 
 - **P-ILV-1**
   - Requirement: Declare transaction_interleaving ("none"/"possible") in STREAM_METADATA
   - Who: Producer
-  - Section: 2.2a, 10.4
+  - Section: 2.2a, 9.4
 
 - **P-SCOPE-2**
   - Requirement: ordering_scope MUST be "channel" unless one total order across every event is structurally enforced (conservative default)
@@ -2152,50 +2141,46 @@ This summary lists the producer (and bilateral) conformance requirements. Confor
 - **P-TRX-1**
   - Requirement: When transaction_interleaving is "possible", transaction_boundaries MUST be commit_all and TRX_COMMIT MUST be emitted for every transaction; commit_multi_event is valid only under "none" interleaving, which MAY also use none
   - Who: Producer
-  - Section: 8.3, 10.5
+  - Section: 7.3, 9.5
 
 - **P-TRX-2**
   - Requirement: TRX_COMMIT event_count = count of distinct cdctxorder ordinals of DML and DDL events (DDL counts; lifecycle events do not)
   - Who: Producer
-  - Section: 10.5
+  - Section: 9.5
 
 - **P-TRX-3**
   - Requirement: TRX_COMMIT MUST carry cdcxid and MUST NOT carry cdctxorder; correlation is by cdcxid only
   - Who: Producer
-  - Section: 10.5
+  - Section: 9.5
 
 - **P-TRX-4**
   - Requirement: When TRX_COMMIT distribution is present, per-subject counts MUST sum to event_count
   - Who: Producer
-  - Section: 10.5
+  - Section: 9.5
 
 - **R-POS-6**
   - Requirement: A replay window including any event of a transaction MUST also redeliver that transaction's TRX_COMMIT with stable id and identical event_count
   - Who: Producer
-  - Section: 8.2, 10.5
+  - Section: 7.2, 9.5
 
 - **P-DDL-1**
   - Requirement: When ddl_capture is not "none": emit a DDL event for every source DDL operation changing a captured table's emission schema, including creation and drop of a captured table, in source commit order with DML; non-schema-changing DDL events MAY be emitted and never trigger OBJECT_METADATA or schema_version
   - Who: Producer
-  - Section: 2.5, 9
+  - Section: 2.5, 8
 
 - **P-DDL-2**
   - Requirement: Applies to every DDL event emitted in any mode. Under "verbatim": ddl.statement carries verbatim source text (statement_truncated permitted). Under "structural": the ddl object is empty -- statement omitted; synthesized SQL is non-conformant. Under "none": an opportunistic DDL event takes one of these two shapes. A producer MUST NOT emit a ddl.* event for a change that was not a source DDL operation
   - Who: Producer
-  - Section: 9, 9.1
+  - Section: 8, 8.1
 
 - **P-COMPAT-1**
   - Requirement: meta.* lifecycle types are additive; producers MUST NOT repurpose existing type names; the dml.* and ddl.* operation vocabularies are closed and extended only by specification revision
   - Who: Producer
   - Section: 2.2a, 3.2
 
-# 18. Design Decision Record
+# 16. Conformance
 
-The deliberate design decisions behind this specification -- what was adopted, what was rejected, and why -- are recorded in the companion OpenCDC Architecture Decision Record (ADR) v0.1 (see Normative References). They are maintained there, in numbered ADR entries, rather than inline, so this document can stay focused on defining the specification itself.
-
-# 19. Conformance
-
-Conformance is **capability-scoped and self-asserted.** An implementation is a conforming OpenCDC producer if it satisfies every producer requirement in the Normative Summary (Section 17) **that applies to the capabilities it declares** in STREAM_METADATA -- not necessarily every rule in the document. Many MUST rules are conditional: a rule qualified (SC)/(MC) applies only to the corresponding profile (Section 2.2a), a rule conditioned on `session_aware` applies only when the declared value matches, the transaction-marker rules (P-TRX-*) bind only a producer that declares `transaction_interleaving: "possible"`, the loop-suppression rule (P-LOOP-1, qualifier BD) binds only a producer that declares `bidirectional: true`, and the DDL-coverage rules P-DDL-1 and P-DDL-2 bind only a producer that declares `ddl_capture` other than `"none"` (P-DDL-3, a SHOULD, applies in the converse case). A single-channel producer that never emits markers and a fully-featured multi-channel producer can therefore both be conformant to different, declared bars. A producer SHOULD state the capabilities it claims (its declared `ordering_scope`, `transaction_interleaving`, `transaction_boundaries`, `schema_delivery`, `session_aware`, `sequence_continuity`, `bidirectional`, `ddl_capture`) alongside any conformance claim -- the profile shorthand *single*/*multi* (Section 2.2a) is acceptable in claims -- so the claim is unambiguous. A distinction applies between what software *implements* and what a deployment *conforms to*: a product claims it implements OpenCDC (emits valid events, declares constrained axes truthfully within their source and deployment constraints, correctly carries and validates configuration-supplied values, defaults conservatively); only an operating deployment claims its stream is conformant (the delivered guarantees actually hold).
+Conformance is **capability-scoped and self-asserted.** An implementation is a conforming OpenCDC producer if it satisfies every producer requirement in the Normative Summary (Section 15) **that applies to the capabilities it declares** in STREAM_METADATA -- not necessarily every rule in the document. Many MUST rules are conditional: a rule qualified (SC)/(MC) applies only to the corresponding profile (Section 2.2a), a rule conditioned on `session_aware` applies only when the declared value matches, the transaction-marker rules (P-TRX-*) bind only a producer that declares `transaction_interleaving: "possible"`, the loop-suppression rule (P-LOOP-1, qualifier BD) binds only a producer that declares `bidirectional: true`, and the DDL-coverage rules P-DDL-1 and P-DDL-2 bind only a producer that declares `ddl_capture` other than `"none"` (P-DDL-3, a SHOULD, applies in the converse case). A single-channel producer that never emits markers and a fully-featured multi-channel producer can therefore both be conformant to different, declared bars. A producer SHOULD state the capabilities it claims (its declared `ordering_scope`, `transaction_interleaving`, `transaction_boundaries`, `schema_delivery`, `session_aware`, `sequence_continuity`, `bidirectional`, `ddl_capture`) alongside any conformance claim -- the profile shorthand *single*/*multi* (Section 2.2a) is acceptable in claims -- so the claim is unambiguous. A distinction applies between what software *implements* and what a deployment *conforms to*: a product claims it implements OpenCDC (emits valid events, declares constrained axes truthfully within their source and deployment constraints, correctly carries and validates configuration-supplied values, defaults conservatively); only an operating deployment claims its stream is conformant (the delivered guarantees actually hold).
 
 Conformance is self-asserted in this revision. A working-group **Conformance Test Suite** that specifies exactly which parts of the specification a given producer satisfies is anticipated as future work; until it exists, the declared-capability statement above is the honest expression of what "conformant" means for a particular implementation.
 
@@ -2211,7 +2196,7 @@ Conformance with this specification additionally requires conformance with:
 
 Conformance testing guidance: A conformant stream can be validated end-to-end using only a JSON parser, a JSON Schema 2020-12 validator, and the OpenCDC specification documents. No vendor-specific tooling is required. This is a design requirement, not a convenience -- a validator that requires vendor tools is testing the vendor tool, not the stream.
 
-## 19.1 Compliance Matrix
+## 16.1 Compliance Matrix
 
 This matrix lists producer (and bilateral) conformance requirements. Consumer-side obligations needed to interoperate at full fidelity are non-normative and appear in Appendix A, organized as a consumer parse pipeline. Requirements marked (SC) or (MC) apply only to the corresponding profile (Section 2.2a); the qualifier (BD) applies only to producers declaring `bidirectional: true`.
 
@@ -2221,8 +2206,8 @@ This matrix lists producer (and bilateral) conformance requirements. Consumer-si
 |---|---|---|---|---|---|
 | Schema delivery before first DML | MUST | MUST |  | 4.1 | P-ORD-4, C-ORD-1 |
 | Schema re-emission on emission-schema change | MUST |  |  | 4.1 | P-ORD-5 |
-| DDL event coverage when ddl_capture declared other than "none" (incl. CREATE/DROP of captured tables) | MUST |  |  | 9 | P-DDL-1 |
-| DDL statement fidelity by declared mode (verbatim / structural / opportunistic under none) | MUST |  |  | 9.1 | P-DDL-2 |
+| DDL event coverage when ddl_capture declared other than "none" (incl. CREATE/DROP of captured tables) | MUST |  |  | 8 | P-DDL-1 |
+| DDL statement fidelity by declared mode (verbatim / structural / opportunistic under none) | MUST |  |  | 8.1 | P-DDL-2 |
 | cdcschemauri present and content-equivalent when schema_by_reference active | MUST |  |  | 3.3, 4.5.4 | P-SCHEMA-6 |
 | Reconnect coverage: at least one of schema_on_reconnect / schema_on_each_event present and true | MUST |  |  | 4.4 | P-SCHEMA-2 |
 | Schema re-emission on reconnect (when `session_aware: true` and Schema on Reconnect is the effective mechanism) | MUST |  |  | 6.4 | P-CONN-1 |
@@ -2231,33 +2216,33 @@ This matrix lists producer (and bilateral) conformance requirements. Consumer-si
 | logical_type from OpenCDC vocabulary | MUST |  |  | 4.3 | P-TYPE-2 |
 | Values-only DML payloads (no per-row types) | MUST |  |  | 5 | P-DML-1 |
 | _null_columns and _lob_overflow present in every DML | MUST |  |  | 5.2 | P-LOB-2 |
-| Transaction non-interleaving (when `transaction_interleaving: "none"` declared; per emission channel, stream-wide under `ordering_scope: "stream"`) | MUST |  |  | 8.3 | T-NOINTERLEAVE |
+| Transaction non-interleaving (when `transaction_interleaving: "none"` declared; per emission channel, stream-wide under `ordering_scope: "stream"`) | MUST |  |  | 7.3 | T-NOINTERLEAVE |
 | cdctxorder monotonic within transaction | MUST |  |  | 6.1 | P-ORD-3 |
-| Stable UUID id (unchanged during replay) | MUST |  |  | 11.2 | P-IDEM-1 |
-| Replay begins at/before schema event | MUST |  |  | 8.2 | R-POS-2 |
-| HEARTBEAT during idle periods | MUST |  |  | 10.1 | T-HEARTBEAT |
-| Loop suppression (BD; when bidirectional declared): no re-emission toward the ingress counterpart | MUST |  |  | 3.4, 10.4 | P-LOOP-1 |
-| Declare bidirectional when one leg of an active-active pair | MUST |  |  | 2.2a, 10.4 | (register: axis default false) |
-| TRUNCATE: before=null, after=null, primary_key populated | MUST |  |  | 10.2.4 | P-TRUNC-1 |
-| TRUNCATE: _null_columns and _lob_overflow present and empty | MUST |  |  | 10.2.4 | P-TRUNC-1 |
-| TRUNCATE: truncate_details populated when engine exposes options | SHOULD |  |  | 10.2.5, 2.8 | P-TRUNC-4 |
-| Multi-table TRUNCATE: one event per table, shared cdcxid, sequential cdctxorder | MUST |  |  | 6.1, 10.2.3 | P-ORD-7, P-TRUNC-2 |
-| Non-transactional TRUNCATE (Oracle, MySQL): synthetic cdcxid required | MUST |  |  | 10.2.2, 8.3 | P-TRUNC-3 |
+| Stable UUID id (unchanged during replay) | MUST |  |  | 10.2 | P-IDEM-1 |
+| Replay begins at/before schema event | MUST |  |  | 7.2 | R-POS-2 |
+| HEARTBEAT during idle periods | MUST |  |  | 9.1 | T-HEARTBEAT |
+| Loop suppression (BD; when bidirectional declared): no re-emission toward the ingress counterpart | MUST |  |  | 3.4, 9.4 | P-LOOP-1 |
+| Declare bidirectional when one leg of an active-active pair | MUST |  |  | 2.2a, 9.4 | (register: axis default false) |
+| TRUNCATE: before=null, after=null, primary_key populated | MUST |  |  | 9.2.4 | P-TRUNC-1 |
+| TRUNCATE: _null_columns and _lob_overflow present and empty | MUST |  |  | 9.2.4 | P-TRUNC-1 |
+| TRUNCATE: truncate_details populated when engine exposes options | SHOULD |  |  | 9.2.5, 2.8 | P-TRUNC-4 |
+| Multi-table TRUNCATE: one event per table, shared cdcxid, sequential cdctxorder | MUST |  |  | 6.1, 9.2.3 | P-ORD-7, P-TRUNC-2 |
+| Non-transactional TRUNCATE (Oracle, MySQL): synthetic cdcxid required | MUST |  |  | 9.2.2, 7.3 | P-TRUNC-3 |
 | Payload encoding preserves field semantics | MUST | MUST |  | 2.7 | P-TYPE-3 |
-| Declare ordering_scope (stream/channel) | MUST |  |  | 2.2a, 10.4 | P-SCOPE-1 |
-| Declare transaction_interleaving (none/possible) | MUST |  |  | 2.2a, 10.4 | P-ILV-1 |
-| Markers when not delivering directly (payload-only producers) | SHOULD |  |  | 10.5 | P-TRX-7 |
+| Declare ordering_scope (stream/channel) | MUST |  |  | 2.2a, 9.4 | P-SCOPE-1 |
+| Declare transaction_interleaving (none/possible) | MUST |  |  | 2.2a, 9.4 | P-ILV-1 |
+| Markers when not delivering directly (payload-only producers) | SHOULD |  |  | 9.5 | P-TRX-7 |
 | Conservative defaults: channel-scope unless total order enforced; possible unless contiguity guaranteed | MUST |  |  | 2.2a | P-SCOPE-2, P-ILV-2 |
-| TRX_COMMIT markers mandatory when `transaction_interleaving: "possible"`, any topology (transaction_boundaries != none) | MUST |  |  | 8.3, 10.5 | P-TRX-1 |
-| TRX_COMMIT event_count = distinct cdctxorder ordinals (DDL counts) | MUST |  |  | 10.5 | P-TRX-2 |
-| TRX_COMMIT carries cdcxid, not cdctxorder (correlation by cdcxid) | MUST |  |  | 10.5 | P-TRX-3 |
-| TRX_COMMIT distribution sums to event_count when present | MUST |  |  | 10.5 | P-TRX-4 |
-| Declare transaction_visibility; default committed_only | SHOULD |  |  | 2.2a, 10.4 | P-TRX-6 |
-| Replay redelivers a transaction's TRX_COMMIT (stable id, same event_count) | MUST |  |  | 8.2, 10.5 | R-POS-6 |
+| TRX_COMMIT markers mandatory when `transaction_interleaving: "possible"`, any topology (transaction_boundaries != none) | MUST |  |  | 7.3, 9.5 | P-TRX-1 |
+| TRX_COMMIT event_count = distinct cdctxorder ordinals (DDL counts) | MUST |  |  | 9.5 | P-TRX-2 |
+| TRX_COMMIT carries cdcxid, not cdctxorder (correlation by cdcxid) | MUST |  |  | 9.5 | P-TRX-3 |
+| TRX_COMMIT distribution sums to event_count when present | MUST |  |  | 9.5 | P-TRX-4 |
+| Declare transaction_visibility; default committed_only | SHOULD |  |  | 2.2a, 9.4 | P-TRX-6 |
+| Replay redelivers a transaction's TRX_COMMIT (stable id, same event_count) | MUST |  |  | 7.2, 9.5 | R-POS-6 |
 | meta.* lifecycle types additive; dml.*/ddl.* vocabularies closed; names not repurposed | MUST |  |  | 2.2a, 3.2 | P-COMPAT-1 |
-| Initial load: SNAPSHOT precedes steady-state DML; completion signaled | MUST |  |  | 10.3 | P-SNAP-1 |
+| Initial load: SNAPSHOT precedes steady-state DML; completion signaled | MUST |  |  | 9.3 | P-SNAP-1 |
 
-## 19.2 Conformance Test Scenarios
+## 16.2 Conformance Test Scenarios
 
 The following scenarios are the minimum test suite for conformance validation. Each scenario is tagged with the use-case capability it exercises; see the informative OpenCDC User Stories document for the motivating use cases behind each capability.
 
@@ -2373,7 +2358,7 @@ The following scenarios are the minimum test suite for conformance validation. E
 
 - **T-20b**
   - Scenario: Captured-table lifecycle under a declared ddl_capture mode
-  - Pass Criterion: Under `ddl_capture: "structural"` or `"verbatim"`, a source DROP of a captured table emits `ddl.DROP`; no OBJECT_METADATA follows and no further events for that table appear. A source CREATE of a newly captured table emits `ddl.CREATE` whose `dataschema` forward-references the next OBJECT_METADATA for that subject (Section 9.1), followed by that OBJECT_METADATA before the table's first DML. Re-creation of a previously dropped subject increments schema_version above the prior maximum even when descriptors are unchanged (Section 4.2).
+  - Pass Criterion: Under `ddl_capture: "structural"` or `"verbatim"`, a source DROP of a captured table emits `ddl.DROP`; no OBJECT_METADATA follows and no further events for that table appear. A source CREATE of a newly captured table emits `ddl.CREATE` whose `dataschema` forward-references the next OBJECT_METADATA for that subject (Section 8.1), followed by that OBJECT_METADATA before the table's first DML. Re-creation of a previously dropped subject increments schema_version above the prior maximum even when descriptors are unchanged (Section 4.2).
   - Use Case: Schema evolution; Table lifecycle
 
 - **T-21**
@@ -2383,14 +2368,14 @@ The following scenarios are the minimum test suite for conformance validation. E
 
 - **T-21b**
   - Scenario: Source schema change with ddl_capture absent
-  - Pass Criterion: A stream omitting `ddl_capture` (effective `"none"`) undergoes a source DDL change to a captured table. PASS if and only if a new OBJECT_METADATA (schema_version incremented by 1) precedes the first DML event under the new schema. No `ddl.*` event is required; an opportunistically emitted DDL event is permitted and MUST conform to Section 9.1 (P-DDL-2).
+  - Pass Criterion: A stream omitting `ddl_capture` (effective `"none"`) undergoes a source DDL change to a captured table. PASS if and only if a new OBJECT_METADATA (schema_version incremented by 1) precedes the first DML event under the new schema. No `ddl.*` event is required; an opportunistically emitted DDL event is permitted and MUST conform to Section 8.1 (P-DDL-2).
   - Use Case: Schema evolution; Source-limited DDL visibility
 
 # Appendix A: Consumer Reference -- Reading and Parsing OpenCDC Streams (Informative)
 
 This appendix is **non-normative** with respect to this specification, which governs producer behavior (see Document Authority and Scope). It is written for an implementer -- human or automated -- building software that reads and applies a conformant OpenCDC stream. It is organized as a **parse pipeline**: read it in order (A.1 -> A.8) to build a consumer, and use A.12 as a quick reference.
 
-**Obligation ceiling:** because this appendix is informative and there is no consumer conformance concept in this specification, no consumer-directed guidance here exceeds SHOULD/SHOULD NOT. Where MUST appears in this appendix it is a restatement of a *producer* guarantee (with its register ID cited) or a cross-reference to a bilateral wire-interpretation rule retained in Section 19.1 -- the force belongs to the cited rule, not to this appendix. A consumer targeting a lower service level (e.g., coarse analytics) MAY relax any guidance here; relaxing forfeits the corresponding fidelity guarantee. Consumer guidance items are identified with `C-*` (and consumer-side `R-POS-*`) IDs so they can be cross-referenced from the register and the body.
+**Obligation ceiling:** because this appendix is informative and there is no consumer conformance concept in this specification, no consumer-directed guidance here exceeds SHOULD/SHOULD NOT. Where MUST appears in this appendix it is a restatement of a *producer* guarantee (with its register ID cited) or a cross-reference to a bilateral wire-interpretation rule retained in Section 16.1 -- the force belongs to the cited rule, not to this appendix. A consumer targeting a lower service level (e.g., coarse analytics) MAY relax any guidance here; relaxing forfeits the corresponding fidelity guarantee. Consumer guidance items are identified with `C-*` (and consumer-side `R-POS-*`) IDs so they can be cross-referenced from the register and the body.
 
 ## A.0 Mental model: what a conformant producer guarantees you
 
@@ -2408,11 +2393,11 @@ Axes you must read and act on:
 - **`sequence_continuity`** -- `guaranteed` / `best_effort` / `reset`; governs cross-session `pos.lsn` comparison (A.7).
 - **`heartbeat_interval_seconds`** and HEARTBEAT delivery -- where to read liveness signals (A.5/A.11).
 - *(v0.7.0 adds `ordering_scope`, `transaction_interleaving`, `transaction_boundaries`, `transaction_visibility`, `bidirectional`, `ddl_capture` -- see A.5, A.8, A.10, A.12.1.)*
-- **Consume conservatively (C-COMP-1):** the ordering axes describe the producer's emitted sequence, not what your transport delivered. Unless you receive events directly from the producer, or your deployment operates under a claimed transport binding profile (future work; Section 12) that covers delivery of these guarantees, you SHOULD treat the delivered guarantees as `ordering_scope: "channel"` with `transaction_interleaving: "possible"` regardless of the declaration, and you SHOULD NOT upgrade based on observed transport topology alone. For Kafka transports, see Appendix B.4.
+- **Consume conservatively (C-COMP-1):** the ordering axes describe the producer's emitted sequence, not what your transport delivered. Unless you receive events directly from the producer, or your deployment operates under a claimed transport binding profile (future work; Section 11) that covers delivery of these guarantees, you SHOULD treat the delivered guarantees as `ordering_scope: "channel"` with `transaction_interleaving: "possible"` regardless of the declaration, and you SHOULD NOT upgrade based on observed transport topology alone. For Kafka transports, see Appendix B.4.
 
 ## A.2 Acquire and cache the schema (OBJECT_METADATA)
 
-Every DML/DDL event references a schema by its `dataschema`. You SHOULD resolve that reference from your cache before decoding the event; decoding without the governing schema forfeits type fidelity. One exception: a `ddl.CREATE` whose `dataschema` names an OBJECT_METADATA you have not yet received is a forward reference (Section 9.1). You SHOULD buffer the CREATE until the named event arrives rather than treating the unresolved reference as an error; it is guaranteed to precede that subject's first DML.
+Every DML/DDL event references a schema by its `dataschema`. You SHOULD resolve that reference from your cache before decoding the event; decoding without the governing schema forfeits type fidelity. One exception: a `ddl.CREATE` whose `dataschema` names an OBJECT_METADATA you have not yet received is a forward reference (Section 8.1). You SHOULD buffer the CREATE until the named event arrives rather than treating the unresolved reference as an error; it is guaranteed to precede that subject's first DML.
 
 - **C-SCHEMA-2:** detect schema changes by comparing the producer-provided `schema_version` drift signal in a received OBJECT_METADATA against your last cached version for that table. *(Optional technique: you MAY additionally compute your own hash of the cached column descriptors for a fast equality check -- scope and algorithm are entirely your choice. OpenCDC does not define a producer-supplied schema hash.)*
 - **C-SCHEMA-3:** update your cache immediately on a new OBJECT_METADATA; apply it to all subsequent DML referencing the new schema id.
@@ -2504,7 +2489,7 @@ Loop suppression is a **producer** responsibility (the applier marks applied tra
 
 ## A.10 Multi-channel transaction completeness (TRX_COMMIT)
 
-When the stream declares `transaction_interleaving: "possible"`, you cannot infer completion from arrival order. Use the TRX_COMMIT marker (Section 10.5):
+When the stream declares `transaction_interleaving: "possible"`, you cannot infer completion from arrival order. Use the TRX_COMMIT marker (Section 9.5):
 
 - **C-TRX-1 (visibility handling):** read `transaction_visibility` from STREAM_METADATA. If it is absent, treat it as `committed_only`. If it is a value you do not recognize, the safe default is to **fail closed** (refuse the stream) rather than apply events under an unknown contract. This fail-closed default is deliberately not an absolute invariant: a future visibility mode may make uncommitted records visible, and a consumer that *understands* that future mode MAY instead choose to process uncommitted records (e.g., speculative apply with rollback on abort). A consumer that does not understand the declared value SHOULD NOT silently apply as if it were `committed_only`; failing closed is the safe behavior.
 - **C-TRX-2 (completeness algorithm):** for each `cdcxid`, buffer arriving events and record their distinct `cdctxorder` ordinals. On receiving that transaction's TRX_COMMIT, you are complete if and only if you hold every ordinal `0..event_count-1`. Only then apply the transaction atomically. Until then, keep buffering; do not apply a partial transaction.
@@ -2623,7 +2608,7 @@ The consumer obligations (C-*) below are listed in the order a consumer encounte
 
 This appendix is non-normative, and — like Appendix A — directs no MUST-level obligation at consumers; guidance here is SHOULD-ceiling. It illustrates how common transport technologies realize the delivery layer for an OpenCDC stream: how many delivery channels they present, whether session awareness is available, and how the emission-level declarations (Section 2.2a) compose with each transport (C-COMP-1).
 
-*v0.7.0 note:* "channel count" maps to the declared guarantee axes (Section 2.2a) -- a single totally-ordered channel supports `ordering_scope: "stream"` with `transaction_interleaving: "none"` (the *single* profile); any partitioned, topic-per-table, or fan-out arrangement (e.g., Kafka topic-per-table, object-storage parallel reads) is `ordering_scope: "channel"` and, absent a structurally enforced per-channel contiguity invariant, `transaction_interleaving: "possible"` -- which REQUIRES TRX_COMMIT markers (Section 10.5), delivered per the declared `transaction_marker_delivery`. Declared values are a deployment-time output of the assembled producer: infrastructure changes that alter topology (repartitioning, routing changes) require re-declaration.
+*v0.7.0 note:* "channel count" maps to the declared guarantee axes (Section 2.2a) -- a single totally-ordered channel supports `ordering_scope: "stream"` with `transaction_interleaving: "none"` (the *single* profile); any partitioned, topic-per-table, or fan-out arrangement (e.g., Kafka topic-per-table, object-storage parallel reads) is `ordering_scope: "channel"` and, absent a structurally enforced per-channel contiguity invariant, `transaction_interleaving: "possible"` -- which REQUIRES TRX_COMMIT markers (Section 9.5), delivered per the declared `transaction_marker_delivery`. Declared values are a deployment-time output of the assembled producer: infrastructure changes that alter topology (repartitioning, routing changes) require re-declaration.
 
 ## B.1 Dimension Mapping Table
 
@@ -2659,21 +2644,21 @@ The `session_aware` declaration in STREAM_METADATA drives the consumer's schema 
 
 ## B.4 Kafka Consumption Guidance (Informative)
 
-This section is informative and prefigures a future normative Kafka transport binding (see Section 12). It does not create consumer conformance obligations under this specification; where guidance below is phrased as a recommendation, it is a SHOULD-level practice, not a MUST. Deployments that follow this guidance now should expect minimal change when a normative Kafka binding is published, since the binding is expected to formalize the practices described here.
+This section is informative and prefigures a future normative Kafka transport binding (see Section 11). It does not create consumer conformance obligations under this specification; where guidance below is phrased as a recommendation, it is a SHOULD-level practice, not a MUST. Deployments that follow this guidance now should expect minimal change when a normative Kafka binding is published, since the binding is expected to formalize the practices described here.
 
-**Consuming conservatively on Kafka.** Absent a claimed transport binding profile (future work; Section 12), a consumer SHOULD treat delivered guarantees as `ordering_scope: "channel"` and `transaction_interleaving: "possible"` even when the producer's emission declaration is `"stream"`/`"none"` (Section 2.2a, Scope of Declarations; Appendix A.1, C-COMP-1). A single-partition topic MAY justify locally stronger assumptions, but only where the partition count is structurally enforced by provisioning policy or topic-creation configuration -- never from observation alone, since Kafka permits increasing a topic's partition count at runtime without restarting the producer, which can silently invalidate a previously safe assumption.
+**Consuming conservatively on Kafka.** Absent a claimed transport binding profile (future work; Section 11), a consumer SHOULD treat delivered guarantees as `ordering_scope: "channel"` and `transaction_interleaving: "possible"` even when the producer's emission declaration is `"stream"`/`"none"` (Section 2.2a, Scope of Declarations; Appendix A.1, C-COMP-1). A single-partition topic MAY justify locally stronger assumptions, but only where the partition count is structurally enforced by provisioning policy or topic-creation configuration -- never from observation alone, since Kafka permits increasing a topic's partition count at runtime without restarting the producer, which can silently invalidate a previously safe assumption.
 
 **Channel mapping.** On Kafka, the emission/delivery *channel* (Terms and Definitions) corresponds to the partition, not the topic. A topic with many partitions is a many-channel delivery path even if the producer's emission declaration describes a single logically ordered sequence.
 
 **Assembly reality.** Kafka consumer groups assign partitions to different group members, so events belonging to one `cdcxid` may be received by different consumer processes. Three practical strategies, in increasing order of complexity: (1) a single reader consuming all relevant topics/partitions directly, avoiding cross-process assembly; (2) a repartition-by-`cdcxid` stage (e.g., a stream-processing topology) that regroups events before a stateful assembly step; (3) per-partition apply with eventual convergence, which is a deliberately weaker service level (Appendix A) appropriate only where cross-table transaction atomicity is not required by the consuming application.
 
-**Checkpointing.** A consumer SHOULD commit Kafka transport offsets as the mechanical checkpoint, while persisting `cdcpos` (Section 8.1) as the logical resume position. On resume, prefer `cdcpos` as the position of record and treat the Kafka offset as its transport-specific realization.
+**Checkpointing.** A consumer SHOULD commit Kafka transport offsets as the mechanical checkpoint, while persisting `cdcpos` (Section 7.1) as the logical resume position. On resume, prefer `cdcpos` as the position of record and treat the Kafka offset as its transport-specific realization.
 
 **Control-topic reading.** Where STREAM_METADATA and schema are delivered via a control channel realized as a Kafka topic, a consumer SHOULD read the topic to its end and retain the highest `metadata_revision` per key, rather than stopping at the first record per key. Schema versions SHOULD be cached by version identifier, not overwritten by a "latest only" cache, so that a replayed position can still resolve its governing schema (see R-POS-7).
 
-**Marker topics.** A consumer SHOULD subscribe to the declared TRX_COMMIT marker channel (Section 10.5, `transaction_marker_delivery`) and be aware that marker-topic retention needs to cover data-topic retention (P-RET-1) for replay to remain schema- and transaction-resolvable. A transaction whose marker has not arrived within a bounded interval SHOULD be surfaced per the bounded-wait guidance in Appendix A.10, rather than resolved automatically.
+**Marker topics.** A consumer SHOULD subscribe to the declared TRX_COMMIT marker channel (Section 9.5, `transaction_marker_delivery`) and be aware that marker-topic retention needs to cover data-topic retention (P-RET-1) for replay to remain schema- and transaction-resolvable. A transaction whose marker has not arrived within a bounded interval SHOULD be surfaced per the bounded-wait guidance in Appendix A.10, rather than resolved automatically.
 
-**Transport transactions.** Kafka's own transactional producer/read-committed consumer feature can provide atomic multi-partition visibility at the transport level. This is a useful deployment optimization but does not substitute for the logical completion algorithm defined in Section 10.5.4: a consumer relying on transport transactions alone, without the logical `cdcxid`/TRX_COMMIT assembly, is not interoperable with producers or consumers that do not share the same transport-level guarantee.
+**Transport transactions.** Kafka's own transactional producer/read-committed consumer feature can provide atomic multi-partition visibility at the transport level. This is a useful deployment optimization but does not substitute for the logical completion algorithm defined in Section 9.5.4: a consumer relying on transport transactions alone, without the logical `cdcxid`/TRX_COMMIT assembly, is not interoperable with producers or consumers that do not share the same transport-level guarantee.
 
 **Schema-race and bounded-wait mechanics.** The general guidance in Appendix A.2 (control-channel schema race) and Appendix A.10 (bounded wait for missing markers) applies on Kafka via ordinary consumer poll-loop mechanics: pausing consumption of the affected partition (e.g., a `pause()`/`resume()` cycle), re-polling the control topic until the required schema version or marker arrives, and resuming only then. Neither situation should be treated as corruption; both are ordinary races between independently-progressing channels.
 

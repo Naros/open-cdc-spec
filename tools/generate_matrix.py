@@ -18,7 +18,7 @@ for row in reg["matrix"]:
     for rid in row.get("req_ids", []):
         assert rid in known, f"matrix references unknown requirement ID {rid}"
 
-m = re.search(r"(## 19\.1 Compliance Matrix\n\n)(.*?)(^## 19\.2 Conformance Test Scenarios)", text, re.S | re.M)
+m = re.search(r"(## 16\.1 Compliance Matrix\n\n)(.*?)(^## 16\.2 Conformance Test Scenarios)", text, re.S | re.M)
 assert m, "Section 19.1 boundaries not found"
 intro = m.group(2).split("| Capability")[0].rstrip("\n")   # all framing paragraphs, not just the first
 tbl = [intro, "", "| Capability | Producer | Consumer | Both | Section | Requirements |", "|---|---|---|---|---|---|"]

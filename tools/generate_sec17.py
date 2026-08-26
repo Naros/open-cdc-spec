@@ -12,7 +12,7 @@ yaml_path = args[1] if len(args) > 1 else "requirements.yaml"
 
 text = open(spec_path, encoding="utf-8").read()
 reg = yaml.safe_load(open(yaml_path))
-m = re.search(r"(# 17\. Normative Summary\n)(.*?)(^# 18\. Design Decision Record)", text, re.S | re.M)
+m = re.search(r"(# 15\. Normative Summary\n)(.*?)(^# 16\. Conformance)", text, re.S | re.M)
 assert m, "Section 17 boundaries not found"
 
 PARTIES = ("Producer", "Both", "Delivery Layer")   # Consumer entries are register-only (D-8)

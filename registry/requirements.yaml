@@ -1,7 +1,7 @@
 meta:
   spec_version: 0.7.0
   updated: '2026-08-12'
-  intro: 'This summary lists the producer (and bilateral) conformance requirements. Conformance is capability-scoped: a producer satisfies the rules that apply to the capabilities it declares in STREAM_METADATA (ordering_scope, transaction_interleaving, transaction_boundaries, session_aware, schema_delivery, sequence_continuity, bidirectional, ddl_capture), not necessarily every rule in the document (see Section 19). Consumer obligations (C-* and consumer-side R-*) are non-normative and are defined as a consumer parse pipeline in Appendix A; they are not listed here. SHOULD requirements are register-only -- see the relevant section for the complete normative text.'
+  intro: 'This summary lists the producer (and bilateral) conformance requirements. Conformance is capability-scoped: a producer satisfies the rules that apply to the capabilities it declares in STREAM_METADATA (ordering_scope, transaction_interleaving, transaction_boundaries, session_aware, schema_delivery, sequence_continuity, bidirectional, ddl_capture), not necessarily every rule in the document (see Section 16). Consumer obligations (C-* and consumer-side R-*) are non-normative and are defined as a consumer parse pipeline in Appendix A; they are not listed here. SHOULD requirements are register-only -- see the relevant section for the complete normative text.'
 requirements:
 - id: P-ORD-1
   level: MUST
@@ -41,7 +41,7 @@ requirements:
   who: Producer
   sections:
   - '6.1'
-  - 10.2.3
+  - 9.2.3
 - id: P-TYPE-1
   level: MUST
   requirement: source_type carries verbatim DDL -- no normalization
@@ -108,13 +108,13 @@ requirements:
   requirement: Transaction complete when new cdcxid (or HEARTBEAT) observed after last event in group
   who: Producer
   sections:
-  - '8.3'
+  - '7.3'
 - id: T-NOINTERLEAVE
   level: MUST NOT
   requirement: 'When `transaction_interleaving: "none"` is declared, events of different transactions MUST NOT be interleaved within each emission channel; stream-wide when `ordering_scope: "stream"` is also declared. Producers declaring `transaction_interleaving: "possible"` are exempt and MUST emit TRX_COMMIT markers instead (P-TRX-1).'
   who: Producer
   sections:
-  - '8.3'
+  - '7.3'
   binds_when:
     transaction_interleaving: none
 - id: T-ORDER
@@ -122,68 +122,68 @@ requirements:
   requirement: cdctxorder MUST be gapless and monotonic within a transaction
   who: Producer
   sections:
-  - '8.3'
+  - '7.3'
 - id: T-HEARTBEAT
   level: MUST
   requirement: Producer MUST emit HEARTBEAT within heartbeat_interval_seconds after idle transaction
   who: Producer
   sections:
-  - '8.3'
+  - '7.3'
 - id: P-IDEM-1
   level: MUST
   requirement: Stable UUID id assigned at creation; same id during replay
   who: Producer
   sections:
-  - '11.2'
+  - '10.2'
 - id: R-POS-0
   level: MUST
   requirement: 'Ordering is guaranteed within a transaction by cdctxorder; the CloudEvents sequence field yields cross-transaction total order only within a session where ordering_scope: "stream" is declared and the consumer receives it as one ordered channel (Section 3.3), otherwise per-channel order plus cdcxid/cdctxorder/markers applies; partitionkey is an optional routing hint, not the ordering anchor'
   who: Producer
   sections:
-  - '8.2'
+  - '7.2'
 - id: R-POS-2
   level: MUST
   requirement: Provide cdcpos on resume; producer replays from schema event
   who: Both
   sections:
-  - '8.2'
+  - '7.2'
 - id: R-POS-3
   level: MUST
   requirement: cdcpos is the authoritative resume handle; the payload pos object serves consumer-side ordering logic; both MUST be maintained
   who: Both
   sections:
-  - '8.2'
+  - '7.2'
 - id: R-POS-4
   level: MUST
   requirement: Replay preserves original event order
   who: Producer
   sections:
-  - '8.2'
+  - '7.2'
 - id: R-POS-5
   level: MUST
   requirement: At-least-once delivery is the minimum guarantee; duplicate events are permitted during replay
   who: Producer
   sections:
-  - '8.2'
+  - '7.2'
 - id: P-TRX-7
   level: MUST
   requirement: Producers that do not deliver directly to consumers SHOULD emit TRX_COMMIT markers regardless of interleaving declaration
   who: Producer
   sections:
-  - '10.5'
+  - '9.5'
   - 2.2a
 - id: S-AUTH-2
   level: MUST NOT
   requirement: Credentials MUST NOT be embedded in event payloads or CloudEvents extension attributes
   who: Producer
   sections:
-  - '14.1'
+  - '13.1'
 - id: P-SNAP-1
   level: MUST
   requirement: 'Initial load: SNAPSHOT events for a table precede its first steady-state DML; producer signals initial-load completion (snapshot_complete or first DML cdcxid) and declares the initial-load phase in STREAM_METADATA'
   who: Producer
   sections:
-  - '10.3'
+  - '9.3'
 - id: P-SCHEMA-1
   level: MUST
   requirement: schema_on_change MUST always be true in STREAM_METADATA schema_delivery
@@ -203,7 +203,7 @@ requirements:
   who: Producer
   sections:
   - '4.4'
-  - '10.4'
+  - '9.4'
 - id: P-SCHEMA-4
   level: MUST
   requirement: 'If schema_on_reconnect: false, then schema_on_each_event MUST be true'
@@ -249,34 +249,34 @@ requirements:
   requirement: sequence_continuity MUST be present in every STREAM_METADATA event
   who: Producer
   sections:
-  - 8.4.1
-  - '10.4'
+  - 7.4.1
+  - '9.4'
 - id: P-SEQ-5
   level: MUST
   requirement: When LSN or sequence continuity breaks mid-session, producer MUST emit HEARTBEAT with lsn_reset or sequence_reset
   who: Producer
   sections:
-  - 8.4.2
+  - 7.4.2
 - id: P-SEQ-6
   level: MUST
   requirement: 'pos.lsn MUST be monotonically increasing within a session unless lsn_reset: true or sequence_continuity: "reset" or "best_effort" has been signaled; comparability across session or reset boundaries is not guaranteed'
   who: Producer
   sections:
-  - '8.1'
-  - '8.4'
+  - '7.1'
+  - '7.4'
 - id: P-TRUNC-1
   level: MUST
   requirement: When emitting a TRUNCATE event, before and after MUST be null; _null_columns and _lob_overflow MUST be present and empty; primary_key MUST be populated
   who: Producer
   sections:
-  - 10.2.4
+  - 9.2.4
 - id: P-TRUNC-2
   level: MUST
   requirement: For multi-table TRUNCATE (single SQL statement naming multiple tables), producer MUST emit one TRUNCATE event per table; all events MUST share the same cdcxid; cdctxorder MUST be sequential (0, 1, 2, ...)
   who: Producer
   sections:
   - '6.1'
-  - 10.2.3
+  - 9.2.3
   see_also:
   - P-ORD-7
 - id: P-TRUNC-3
@@ -284,14 +284,14 @@ requirements:
   requirement: For non-transactional TRUNCATE (Oracle, MySQL), producer MUST assign a synthetic cdcxid that is unique, stable across replay, and documented
   who: Producer
   sections:
-  - 10.2.2
-  - '8.3'
+  - 9.2.2
+  - '7.3'
 - id: P-TRUNC-4
   level: MUST NOT
   requirement: If a producer emits TRUNCATE events and the source engine exposes truncate execution options, the producer SHOULD populate truncate_details; producers MUST NOT fabricate flag values that cannot be determined from the capture layer
   who: Producer
   sections:
-  - 10.2.5
+  - 9.2.5
   - '2.8'
 - id: P-SCOPE-1
   level: MUST
@@ -299,14 +299,14 @@ requirements:
   who: Producer
   sections:
   - 2.2a
-  - '10.4'
+  - '9.4'
 - id: P-ILV-1
   level: MUST
   requirement: Declare transaction_interleaving ("none"/"possible") in STREAM_METADATA
   who: Producer
   sections:
   - 2.2a
-  - '10.4'
+  - '9.4'
 - id: P-SCOPE-2
   level: MUST
   requirement: ordering_scope MUST be "channel" unless one total order across every event is structurally enforced (conservative default)
@@ -324,8 +324,8 @@ requirements:
   requirement: When transaction_interleaving is "possible", transaction_boundaries MUST be commit_all and TRX_COMMIT MUST be emitted for every transaction; commit_multi_event is valid only under "none" interleaving, which MAY also use none
   who: Producer
   sections:
-  - '8.3'
-  - '10.5'
+  - '7.3'
+  - '9.5'
   binds_when:
     transaction_interleaving: possible
 - id: P-TRX-2
@@ -333,33 +333,33 @@ requirements:
   requirement: TRX_COMMIT event_count = count of distinct cdctxorder ordinals of DML and DDL events (DDL counts; lifecycle events do not)
   who: Producer
   sections:
-  - '10.5'
+  - '9.5'
 - id: P-TRX-3
   level: MUST
   requirement: TRX_COMMIT MUST carry cdcxid and MUST NOT carry cdctxorder; correlation is by cdcxid only
   who: Producer
   sections:
-  - '10.5'
+  - '9.5'
 - id: P-TRX-4
   level: MUST
   requirement: When TRX_COMMIT distribution is present, per-subject counts MUST sum to event_count
   who: Producer
   sections:
-  - '10.5'
+  - '9.5'
 - id: R-POS-6
   level: MUST
   requirement: A replay window including any event of a transaction MUST also redeliver that transaction's TRX_COMMIT with stable id and identical event_count
   who: Producer
   sections:
-  - '8.2'
-  - '10.5'
+  - '7.2'
+  - '9.5'
 - id: P-DDL-1
   level: MUST
   requirement: 'When ddl_capture is not "none": emit a DDL event for every source DDL operation changing a captured table''s emission schema, including creation and drop of a captured table, in source commit order with DML; non-schema-changing DDL events MAY be emitted and never trigger OBJECT_METADATA or schema_version'
   who: Producer
   sections:
   - '2.5'
-  - '9'
+  - '8'
   binds_when:
     ddl_capture:
     - verbatim
@@ -369,8 +369,8 @@ requirements:
   requirement: 'Applies to every DDL event emitted in any mode. Under "verbatim": ddl.statement carries verbatim source text (statement_truncated permitted). Under "structural": the ddl object is empty -- statement omitted; synthesized SQL is non-conformant. Under "none": an opportunistic DDL event takes one of these two shapes. A producer MUST NOT emit a ddl.* event for a change that was not a source DDL operation'
   who: Producer
   sections:
-  - '9'
-  - '9.1'
+  - '8'
+  - '8.1'
   binds_when:
     ddl_capture:
     - verbatim
@@ -498,19 +498,19 @@ requirements:
   requirement: Persist (pos.lsn, pos.lsn_offset) as structured resume position; persist cdcpos as primary replay handle
   who: Consumer
   sections:
-  - '8.2'
+  - '7.2'
 - id: S-AUTHZ-1
   level: SHOULD
   requirement: 'Table-level access control: consumers receive events only for authorized tables'
   who: Producer
   sections:
-  - '14.1'
+  - '13.1'
 - id: S-AUTHZ-2
   level: SHOULD
   requirement: Column-level masking or exclusion for sensitive columns, per consumer identity
   who: Producer
   sections:
-  - '14.1'
+  - '13.1'
 - id: C-SCHEMA-4
   level: MUST
   requirement: Consumer MUST read schema_delivery in STREAM_METADATA and adapt schema acquisition behavior
@@ -528,28 +528,28 @@ requirements:
   requirement: Consumer MUST NOT compare pos.lsn values across sessions when sequence_continuity is "reset" or "best_effort"
   who: Consumer
   sections:
-  - 8.4.1
+  - 7.4.1
 - id: C-SEQ-3
   level: MUST
   requirement: Consumer MUST treat CloudEvents sequence counter as restarted after reconnect
   who: Consumer
   sections:
   - '3.3'
-  - '8.4'
+  - '7.4'
 - id: C-SEQ-4
   level: MUST
   requirement: Consumer MUST use cdctxorder for intra-transaction ordering, CloudEvents sequence for cross-table total ordering, and (pos.lsn, pos.lsn_offset) for replay positioning
   who: Consumer
   sections:
   - '3.3'
-  - '8.1'
-  - '8.2'
+  - '7.1'
+  - '7.2'
 - id: C-TRUNC-1
   level: MUST
   requirement: Consumers MUST treat any TRUNCATE event as semantically equivalent to deletion of all rows in the named table, regardless of truncate_details presence
   who: Consumer
   sections:
-  - 10.2.1
+  - 9.2.1
   - Appendix A.6
 - id: C-TRUNC-2
   level: SHOULD
@@ -575,7 +575,7 @@ requirements:
   who: Producer
   sections:
   - 2.2a
-  - '9'
+  - '8'
   binds_when:
     ddl_capture: none
 - id: C-COMP-1
@@ -590,7 +590,7 @@ requirements:
   requirement: Declare transaction_visibility; when absent the value defaults to "committed_only"
   sections:
   - 2.2a
-  - '10.4'
+  - '9.4'
 - id: C-COMPAT-1
   level: SHOULD
   requirement: Ignore unrecognized meta.* lifecycle types; never silently ignore unrecognized dml.*/ddl.* types -- surface an error
@@ -650,7 +650,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '9'
+  - '8'
   req_ids:
   - P-DDL-1
 - capability: DDL statement fidelity by declared mode (verbatim / structural / opportunistic under none)
@@ -658,7 +658,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '9.1'
+  - '8.1'
   req_ids:
   - P-DDL-2
 - capability: cdcschemauri present and content-equivalent when schema_by_reference active
@@ -731,7 +731,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '8.3'
+  - '7.3'
   req_ids:
   - T-NOINTERLEAVE
 - capability: cdctxorder monotonic within transaction
@@ -747,7 +747,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '11.2'
+  - '10.2'
   req_ids:
   - P-IDEM-1
 - capability: Replay begins at/before schema event
@@ -755,7 +755,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '8.2'
+  - '7.2'
   req_ids:
   - R-POS-2
 - capability: HEARTBEAT during idle periods
@@ -763,7 +763,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '10.1'
+  - '9.1'
   req_ids:
   - T-HEARTBEAT
 - capability: 'Loop suppression (BD; when bidirectional declared): no re-emission toward the ingress counterpart'
@@ -772,7 +772,7 @@ matrix:
   delivery_layer: null
   sections:
   - '3.4'
-  - '10.4'
+  - '9.4'
   req_ids:
   - P-LOOP-1
 - capability: Declare bidirectional when one leg of an active-active pair
@@ -781,7 +781,7 @@ matrix:
   delivery_layer: null
   sections:
   - 2.2a
-  - '10.4'
+  - '9.4'
   req_ids: []
   req_note: '(register: axis default false)'
 - capability: 'TRUNCATE: before=null, after=null, primary_key populated'
@@ -789,7 +789,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - 10.2.4
+  - 9.2.4
   req_ids:
   - P-TRUNC-1
 - capability: 'TRUNCATE: _null_columns and _lob_overflow present and empty'
@@ -797,7 +797,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - 10.2.4
+  - 9.2.4
   req_ids:
   - P-TRUNC-1
 - capability: 'TRUNCATE: truncate_details populated when engine exposes options'
@@ -805,7 +805,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - 10.2.5
+  - 9.2.5
   - '2.8'
   req_ids:
   - P-TRUNC-4
@@ -815,7 +815,7 @@ matrix:
   delivery_layer: null
   sections:
   - '6.1'
-  - 10.2.3
+  - 9.2.3
   req_ids:
   - P-ORD-7
   - P-TRUNC-2
@@ -824,8 +824,8 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - 10.2.2
-  - '8.3'
+  - 9.2.2
+  - '7.3'
   req_ids:
   - P-TRUNC-3
 - capability: Payload encoding preserves field semantics
@@ -842,7 +842,7 @@ matrix:
   delivery_layer: null
   sections:
   - 2.2a
-  - '10.4'
+  - '9.4'
   req_ids:
   - P-SCOPE-1
 - capability: Declare transaction_interleaving (none/possible)
@@ -851,7 +851,7 @@ matrix:
   delivery_layer: null
   sections:
   - 2.2a
-  - '10.4'
+  - '9.4'
   req_ids:
   - P-ILV-1
 - capability: Markers when not delivering directly (payload-only producers)
@@ -859,7 +859,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '10.5'
+  - '9.5'
   req_ids:
   - P-TRX-7
 - capability: 'Conservative defaults: channel-scope unless total order enforced; possible unless contiguity guaranteed'
@@ -876,8 +876,8 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '8.3'
-  - '10.5'
+  - '7.3'
+  - '9.5'
   req_ids:
   - P-TRX-1
 - capability: TRX_COMMIT event_count = distinct cdctxorder ordinals (DDL counts)
@@ -885,7 +885,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '10.5'
+  - '9.5'
   req_ids:
   - P-TRX-2
 - capability: TRX_COMMIT carries cdcxid, not cdctxorder (correlation by cdcxid)
@@ -893,7 +893,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '10.5'
+  - '9.5'
   req_ids:
   - P-TRX-3
 - capability: TRX_COMMIT distribution sums to event_count when present
@@ -901,7 +901,7 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '10.5'
+  - '9.5'
   req_ids:
   - P-TRX-4
 - capability: Declare transaction_visibility; default committed_only
@@ -910,7 +910,7 @@ matrix:
   delivery_layer: null
   sections:
   - 2.2a
-  - '10.4'
+  - '9.4'
   req_ids:
   - P-TRX-6
 - capability: Replay redelivers a transaction's TRX_COMMIT (stable id, same event_count)
@@ -918,8 +918,8 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '8.2'
-  - '10.5'
+  - '7.2'
+  - '9.5'
   req_ids:
   - R-POS-6
 - capability: meta.* lifecycle types additive; dml.*/ddl.* vocabularies closed; names not repurposed
@@ -936,6 +936,6 @@ matrix:
   consumer: null
   delivery_layer: null
   sections:
-  - '10.3'
+  - '9.3'
   req_ids:
   - P-SNAP-1

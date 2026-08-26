@@ -47,7 +47,7 @@ def excise(txt, start, end, end_optional=False):
 # end_optional: the Change Log is last in the document, so the following
 # marker is deliberately absent and the span runs to EOF.
 body = excise(text, "# Change Log", "\n# Normative References", end_optional=True)
-body = excise(body, "# 17. Normative Summary", "# 18. Design Decision Record")
+body = excise(body, "# 15. Normative Summary", "# 16. Conformance")
 
 fail = False
 unanchored = [rid for rid in reg_ids if not re.search(r"\b" + re.escape(rid) + r"\b", body)]
