@@ -1876,7 +1876,7 @@ Even in Ephemeral Mode, where data loss is acceptable, schema delivery (OBJECT_M
 
 # 16. Implementation Safety Notes
 
-The production-deployment best practices formerly recorded here (schema-mismatch logging, ordering-gap detection, replay consistency checks, sequence-continuity monitoring, HEARTBEAT-lag monitoring, duplicate-rate tracking, and type-decode error isolation) are operational guidance for implementers rather than producer conformance requirements. They are collected, together with the consumer service-level guidance, in Appendix A.8 (Implementation Safety & Monitoring Notes).
+The production-deployment best practices formerly recorded here (schema-mismatch logging, ordering-gap detection, replay consistency checks, sequence-continuity monitoring, HEARTBEAT-lag monitoring, duplicate-rate tracking, and type-decode error isolation) are operational guidance for implementers rather than producer conformance requirements. They are collected, together with the consumer service-level guidance, in Appendix A.11 (Service levels, operational modes, and monitoring).
 
 # 17. Normative Summary
 
